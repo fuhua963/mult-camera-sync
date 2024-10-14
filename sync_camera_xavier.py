@@ -56,15 +56,16 @@ duty_cycle = 50 # 设置占空比为50
 trigger_io = 11
 GPIO.setmode(GPIO.BOARD)
 # GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
-trigger_flag = 0
+# trigger_flag = 0
 
 def trigger_star(out_io,fre,duty_cycle):
     GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
     pwm = GPIO.PWM(out_io, fre)	# 50Hz
     pwm.start(duty_cycle)	# 占空比为50%
 
-    while trigger_flag:
-        pass
+    # 等待1秒
+    time.sleep(1)
+
     pwm.stop()
     GPIO.cleanup()
 
@@ -793,57 +794,6 @@ def save_list_to_avi(nodemap, nodemap_tldevice, images,path):
     return result
 
 
-# def run_single_camera(cam):
-#     """
-#     This function acts as the body of the example; please see NodeMapInfo example
-#     for more in-depth comments on setting up cameras.
-
-#     :param cam: Camera to run on.
-#     :type cam: CameraPtr
-#     :return: True if successful, False otherwise.
-#     :rtype: bool
-#     """
-#     try:
-#         result = True
-
-#         # Retrieve TL device nodemap and print device information
-#         nodemap_tldevice = cam.GetTLDeviceNodeMap()
-
-#         result &= print_device_info(nodemap_tldevice)
-
-#         # Initialize camera
-#         cam.Init()
-
-#         # Retrieve GenICam nodemap
-#         nodemap = cam.GetNodeMap()
-
-#         # Configure camera
-#         if config_camera(nodemap) is False:
-#             return False
-
-#         # Acquire images
-#         result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
-        
-#         # Save image
-#         path = os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
-#         ensure_dir(path)        
-#         result &= save_images(images, exposure_times, timestamps, path)
-        
-#         # Disable chunk data
-#         result &= disable_chunk_data(nodemap)
-        
-#         # Reset trigger
-#         result &= reset_trigger(nodemap)
-        
-#         # Deinitialize camera
-#         cam.DeInit()
-
-#     except PySpin.SpinnakerException as ex:
-#         print('Error: %s' % ex)
-#         result = False
-
-#     return result
-
 
 def main():
     """
@@ -930,18 +880,20 @@ def main():
                 print("pigpiod is running")
             except:
                 print("pigpiod is pre running")
-            pi = pigpio.pi()
-            if not pi.connected:
-                exit()
+
+
             # 多线程执行 
             print("线程开始")
             prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
             prophesee_thread.start()
             # pwm generate
-            pi.hardware_PWM(user_gpio, frequency, duty_cycle)
+            GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
+            pwm = GPIO.PWM(trigger_io, frequency)	# 50Hz
+            pwm.start(duty_cycle)	# 占空比为50%
             result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
-            pi.hardware_PWM(user_gpio, 0, 0) # 停止PWM输出
-            pi.stop()
+            pwm.stop()
+            GPIO.cleanup()
+
             acquisition_flag = 1
             time.sleep(0.1)
             prophesee_cam.stop_recording()
