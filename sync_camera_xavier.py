@@ -102,7 +102,7 @@ class event():
             with open(os.path.join(self.path, 'event', 'TimeStamps.txt'), "w+") as f:
                 for i in range(len(trigger_time)):
                     timestamp =trigger_time[i]
-                    f.write('{}'.format(int(timestamp)/1000000000) +'\n')
+                    f.write('{}'.format(int(timestamp)) +'\n')
         except:
             print(f"no trigger signal!")
         return triggers
@@ -894,7 +894,6 @@ def main():
             GPIO.cleanup()
 
             acquisition_flag = 1
-            time.sleep(0.1)
             prophesee_cam.stop_recording()
             prophesee_cam.prophesee_tirgger_found()
             # Save image    
