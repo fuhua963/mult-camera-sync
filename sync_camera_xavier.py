@@ -876,7 +876,6 @@ def main():
             cam.BeginAcquisition()
             #pip pwm config
             try:
-                os.system('sudo pigpiod')
                 print("pigpiod is running")
             except:
                 print("pigpiod is pre running")
