@@ -20,7 +20,6 @@ from metavision_hal import I_TriggerIn
 from metavision_core.event_io.raw_reader import initiate_device
 
 #  flir camera set
-NUM_IMAGES = 120+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
@@ -561,7 +560,7 @@ def read_chunk_data(image):
         result = False
     return result, exposure_time, timestamp
 
-def acquire_images(cam, nodemap):
+def acquire_images(cam, nodemap,path):
     """
     This function acquires and saves 10 images from a device.
     Please see Acquisition example for more in-depth comments on acquiring images.
@@ -594,10 +593,11 @@ def acquire_images(cam, nodemap):
         # processor will default to NEAREST_NEIGHBOR method.
         processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
         
-        images = list()
-        timestamps = list()
-        exposure_times = list()
-        for i in range(NUM_IMAGES):
+        i = 0
+        print('start saving images...')
+        et_txt = open(os.path.join(path, 'exposure_times.txt'), 'w')
+        ts_txt = open(os.path.join(path, 'timestamps.txt'), 'w')
+        while(1):
             try:
                 # Retrieve next received image and ensure image completion
                 # By default, GetNextImage will block indefinitely until an image arrives.
@@ -618,22 +618,31 @@ def acquire_images(cam, nodemap):
                     
                     # Read chunk data
                     result, exposure_time, timestamp = read_chunk_data(image_result)
-                    exposure_times.append(exposure_time)
-                    timestamps.append(timestamp)
                     
                     # Convert image to RGB8
-                    images.append(processor.Convert(image_result, PySpin.PixelFormat_RGB8).GetNDArray())
+                    image = processor.Convert(image_result, PySpin.PixelFormat_RGB8).GetNDArray()
+
                     
                     
                 # Release image
                 image_result.Release()
-
+                # 丢弃第一张图片
+                if i > 0:
+                        et_txt.write('%s\n' % exposure_time)
+                        ts_txt.write('%s\n' % timestamp)
+                        filename = os.path.join(path, f'image_{i:06d}.png')
+                        image = np.array(image)
+                        cv.imwrite(filename, image)
+                i += 1
             except PySpin.SpinnakerException as ex:
                 print('Error: %s' % ex)
                 return False
+        et_txt.close()
+        ts_txt.close()
+        print('end saving images...')
         
         # End acquisition
-        print(f'we acquiring {len(images)} images')
+        print(f'we acquiring {i} images')
         cam.EndAcquisition()
         
 
@@ -641,8 +650,7 @@ def acquire_images(cam, nodemap):
         print('Error: %s' % ex)
         result = False
 
-    return result, images, exposure_times, timestamps
-
+    return result
 
 def save_images(images, exposure_times, timestamps, path):
     print('start saving images...')
@@ -876,7 +884,7 @@ def main():
             try:
                 print("pigpiod is running")
             except:
-                print("pigpiod is pre running")
+                print("pigpiod is not running")
 
 
             # 多线程执行 
@@ -887,16 +895,14 @@ def main():
             GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
             pwm = GPIO.PWM(trigger_io, frequency)	# 50Hz
             pwm.start(duty_cycle)	# 占空比为50%
-            result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
+            result = acquire_images(cam, nodemap,path)
             pwm.stop()
             GPIO.cleanup()
 
             acquisition_flag = 1
             prophesee_cam.stop_recording()
             prophesee_cam.prophesee_tirgger_found()
-            # Save image    
-            result &= save_images(images, exposure_times, timestamps, path)
-            # result &= save_list_to_avi(nodemap, nodemap_tldevice, images,path)
+
             # Disable chunk data
             result &= disable_chunk_data(nodemap)
             
