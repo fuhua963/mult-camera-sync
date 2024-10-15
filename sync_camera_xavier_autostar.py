@@ -852,7 +852,7 @@ def main():
     
 
     ## config prophesee camera
-    path = os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
+    path = os.path.join('./data', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
     ensure_dir(path) 
     prophesee_cam = event(0,path)
     prophesee_cam.config_prophesee()
