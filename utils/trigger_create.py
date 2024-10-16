@@ -1,5 +1,6 @@
 import Jetson.GPIO as GPIO
 import time
+NUM_IMAGES = 100
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
 expose_time = EXPOSURE_TIME #us
@@ -12,13 +13,14 @@ GPIO.setmode(GPIO.BOARD)
 
 def trigger_star(out_io,fre,duty_cycle):
     GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
-    pwm = GPIO.PWM(out_io, fre)	# 50Hz
-    pwm.start(duty_cycle)	# 占空比为50%
-
-    # 等待1秒
-    time.sleep(1)
-
-    pwm.stop()
+    # pwm = GPIO.PWM(out_io, fre)	# 50Hz
+    # pwm.start(duty_cycle)	# 占空比为50%
+    # pwm.stop()
+    for i in range(NUM_IMAGES):
+        GPIO.output(out_io, GPIO.HIGH)
+        time.sleep(0.5/fre)
+        GPIO.output(out_io, GPIO.LOW)
+        time.sleep(0.5/fre)
     GPIO.cleanup()
 
 
