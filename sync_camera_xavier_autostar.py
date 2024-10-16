@@ -201,18 +201,6 @@ def config_camera(nodemap):
     try:
         result = True
         """ -------------------- 设置ROI -------------------- """
-        node_offset_x = PySpin.CIntegerPtr(nodemap.GetNode('OffsetX'))
-        if not PySpin.IsAvailable(node_offset_x) or not PySpin.IsWritable(node_offset_x):
-            print('\nUnable to set Offset X (integer retrieval). Aborting...\n')
-            return False
-        node_offset_x.SetValue(OFFSET_X)
-        
-        node_offset_y = PySpin.CIntegerPtr(nodemap.GetNode('OffsetY'))
-        if not PySpin.IsAvailable(node_offset_y) or not PySpin.IsWritable(node_offset_y):
-            print('\nUnable to set Offset Y (integer retrieval). Aborting...\n')
-            return False
-        node_offset_y.SetValue(OFFSET_Y)
-        
         node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
         if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
             print('\nUnable to set Width (integer retrieval). Aborting...\n')
@@ -224,6 +212,17 @@ def config_camera(nodemap):
             print('\nUnable to set Height (integer retrieval). Aborting...\n')
             return False
         node_height.SetValue(HEIGHT)
+        node_offset_x = PySpin.CIntegerPtr(nodemap.GetNode('OffsetX'))
+        if not PySpin.IsAvailable(node_offset_x) or not PySpin.IsWritable(node_offset_x):
+            print('\nUnable to set Offset X (integer retrieval). Aborting...\n')
+            return False
+        node_offset_x.SetValue(OFFSET_X)
+        
+        node_offset_y = PySpin.CIntegerPtr(nodemap.GetNode('OffsetY'))
+        if not PySpin.IsAvailable(node_offset_y) or not PySpin.IsWritable(node_offset_y):
+            print('\nUnable to set Offset Y (integer retrieval). Aborting...\n')
+            return False
+        node_offset_y.SetValue(OFFSET_Y)
 
         """ -------------------- 设置帧率 -------------------- """
         node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
