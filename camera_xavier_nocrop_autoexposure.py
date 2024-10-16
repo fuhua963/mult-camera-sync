@@ -256,11 +256,11 @@ def config_camera(nodemap):
         exposure_auto_on = entry_exposure_auto_on.GetValue()
         node_exposure_auto.SetIntValue(exposure_auto_on)
 
-        node_exposure_limit = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
+        node_exposure_limit = PySpin.CFloatPtr(nodemap.GetNode('ExposureTimeLowerLimit'))
         if not PySpin.IsReadable(node_exposure_limit) or not PySpin.IsWritable(node_exposure_limit):
-            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
+            print('\nUnable to set ExposureTimeLowerLimit . Aborting...\n')
             return False
-        node_exposure_limit.SetValue(FRAMERATE)
+        node_exposure_limit.SetValue(13529234)
 
        # timed mode 
         node_exposure_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
