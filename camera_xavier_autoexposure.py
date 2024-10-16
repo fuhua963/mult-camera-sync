@@ -30,10 +30,10 @@ from metavision_core.event_io.raw_reader import initiate_device
 ## flir camera set
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
-# OFFSET_X = 223
-# OFFSET_Y = 523
-# WIDTH = 2000
-# HEIGHT = 1000
+OFFSET_X = 223
+OFFSET_Y = 523
+WIDTH = 2000
+HEIGHT = 1000
 class AviType:
     """'Enum' to select AVI video type to be created and saved"""
     UNCOMPRESSED = 0
@@ -48,10 +48,10 @@ stc_cut_trail = True  # If true, after an event goes through, it removes all eve
 nameoutglob = 1
 acquisition_flag = 0   # 保证 evk4 的采集
 # 硬件裁剪
-# roi_x0 = int(340)
-# roi_y0 = int(60)
-# roi_x1 = int(939)
-# roi_y1 = int(659)
+roi_x0 = int(340)
+roi_y0 = int(60)
+roi_x1 = int(939)
+roi_y1 = int(659)
 
 
 expose_time = EXPOSURE_TIME #us
@@ -128,10 +128,10 @@ class event():
         self.ieventstream = self.device.get_i_events_stream()
         print(self.ieventstream)
         # # 裁剪图像 硬件裁剪
-        # global roi_x0, roi_y0, roi_x1, roi_y1
-        # Digital_Crop = self.device.get_i_digital_crop()
-        # Digital_Crop.set_window_region((roi_x0, roi_y0, roi_x1, roi_y1),False)
-        # Digital_Crop.enable(True)
+        global roi_x0, roi_y0, roi_x1, roi_y1
+        Digital_Crop = self.device.get_i_digital_crop()
+        Digital_Crop.set_window_region((roi_x0, roi_y0, roi_x1, roi_y1),False)
+        Digital_Crop.enable(True)
         
         
         return True
@@ -206,30 +206,30 @@ def config_camera(nodemap):
     try:
         result = True
         # """ -------------------- 设置ROI -------------------- """
-        # node_offset_x = PySpin.CIntegerPtr(nodemap.GetNode('OffsetX'))
-        # if not PySpin.IsAvailable(node_offset_x) or not PySpin.IsWritable(node_offset_x):
-        #     print('\nUnable to set Offset X (integer retrieval). Aborting...\n')
-        #     return False
-        # node_offset_x.SetValue(OFFSET_X)
+        node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
+        if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
+            print('\nUnable to set Width (integer retrieval). Aborting...\n')
+            return False
+        node_width.SetValue(WIDTH)
         
-        # node_offset_y = PySpin.CIntegerPtr(nodemap.GetNode('OffsetY'))
-        # if not PySpin.IsAvailable(node_offset_y) or not PySpin.IsWritable(node_offset_y):
-        #     print('\nUnable to set Offset Y (integer retrieval). Aborting...\n')
-        #     return False
-        # node_offset_y.SetValue(OFFSET_Y)
-        
-        # node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
-        # if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
-        #     print('\nUnable to set Width (integer retrieval). Aborting...\n')
-        #     return False
-        # node_width.SetValue(WIDTH)
-        
-        # node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
-        # if not PySpin.IsAvailable(node_height) or not PySpin.IsWritable(node_height):
-        #     print('\nUnable to set Height (integer retrieval). Aborting...\n')
-        #     return False
-        # node_height.SetValue(HEIGHT)
+        node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
+        if not PySpin.IsAvailable(node_height) or not PySpin.IsWritable(node_height):
+            print('\nUnable to set Height (integer retrieval). Aborting...\n')
+            return False
+        node_height.SetValue(HEIGHT)
 
+        node_offset_x = PySpin.CIntegerPtr(nodemap.GetNode('OffsetX'))
+        if not PySpin.IsAvailable(node_offset_x) or not PySpin.IsWritable(node_offset_x):
+            print('\nUnable to set Offset X (integer retrieval). Aborting...\n')
+            return False
+        node_offset_x.SetValue(OFFSET_X)
+        
+        node_offset_y = PySpin.CIntegerPtr(nodemap.GetNode('OffsetY'))
+        if not PySpin.IsAvailable(node_offset_y) or not PySpin.IsWritable(node_offset_y):
+            print('\nUnable to set Offset Y (integer retrieval). Aborting...\n')
+            return False
+        node_offset_y.SetValue(OFFSET_Y)
+        
         """ -------------------- 设置帧率 -------------------- """
         node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
         if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
