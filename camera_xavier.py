@@ -2,15 +2,15 @@ import PySpin
 import sys
 import time
 import os
-import Jetson.GPIO as GPIO
+# import Jetson.GPIO as GPIO
 import sys
 import tkinter as tk
 import tkinter.font as tkf
 from threading import Thread
 import numpy as np
 import cv2 as cv
-sys.path.append("/home/nvidia/openeb/sdk/modules/core/python/pypkg")
-sys.path.append("/home/nvidia/openeb/build/py3")
+# sys.path.append("/home/nvidia/openeb/sdk/modules/core/python/pypkg")
+# sys.path.append("/home/nvidia/openeb/build/py3")
 #逐行输出sys.path内容
 # print('\n'.join(sys.path))
 
@@ -25,8 +25,8 @@ from metavision_core.event_io.raw_reader import initiate_device
 ## flir camera set
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
-OFFSET_X = 224
-OFFSET_Y = 524
+OFFSET_X = 0
+OFFSET_Y = 0
 WIDTH = 2000
 HEIGHT = 1000
 class AviType:
@@ -51,22 +51,22 @@ roi_y1 = int(659)
 
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
-duty_cycle = 50 # 设置占空比为50
-trigger_io = 11
-GPIO.setmode(GPIO.BOARD)
-# GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
-# trigger_flag = 0
+# duty_cycle = 50 # 设置占空比为50
+# trigger_io = 11
+# GPIO.setmode(GPIO.BOARD)
+# # GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
+# # trigger_flag = 0
 
-def trigger_star(out_io,fre,duty_cycle):
-    GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
-    pwm = GPIO.PWM(out_io, fre)	# 50Hz
-    pwm.start(duty_cycle)	# 占空比为50%
+# def trigger_star(out_io,fre,duty_cycle):
+#     GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
+#     pwm = GPIO.PWM(out_io, fre)	# 50Hz
+#     pwm.start(duty_cycle)	# 占空比为50%
 
-    # 等待1秒
-    time.sleep(1)
+#     # 等待1秒
+#     time.sleep(1)
 
-    pwm.stop()
-    GPIO.cleanup()
+#     pwm.stop()
+#     GPIO.cleanup()
 
 
 class event():
@@ -895,7 +895,7 @@ def main():
 
             acquisition_flag = 1
             prophesee_cam.stop_recording()
-            prophesee_cam.prophesee_tirgger_found()
+            # prophesee_cam.prophesee_tirgger_found()
 
             # Disable chunk data
             result &= disable_chunk_data(nodemap)
