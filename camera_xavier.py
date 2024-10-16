@@ -25,8 +25,8 @@ from metavision_core.event_io.raw_reader import initiate_device
 ## flir camera set
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
-OFFSET_X = 0
-OFFSET_Y = 0
+OFFSET_X = 223
+OFFSET_Y = 523
 WIDTH = 2000
 HEIGHT = 1000
 class AviType:
