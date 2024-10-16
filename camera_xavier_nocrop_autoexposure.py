@@ -237,11 +237,11 @@ def config_camera(nodemap):
             return False
         node_framerate_enable.SetValue(True)
             
-        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
-        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
+        node_exposure_limit = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
+        if not PySpin.IsReadable(node_exposure_limit) or not PySpin.IsWritable(node_exposure_limit):
             print('\nUnable to set Framerate (float retrieval). Aborting...\n')
             return False
-        node_acquisition_framerate.SetValue(FRAMERATE)
+        node_exposure_limit.SetValue(FRAMERATE)
 
         """ -------------------- 设置曝光时间 -------------------- """
         # Turn ON auto exposure
@@ -249,12 +249,19 @@ def config_camera(nodemap):
         if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
             print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
             return False
-        entry_exposure_auto_off = node_exposure_auto.GetEntryByName('Off')
-        if not PySpin.IsReadable(entry_exposure_auto_off):
+        entry_exposure_auto_on = node_exposure_auto.GetEntryByName('On')
+        if not PySpin.IsReadable(entry_exposure_auto_on):
             print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
             return False
-        exposure_auto_off = entry_exposure_auto_off.GetValue()
-        node_exposure_auto.SetIntValue(exposure_auto_off)
+        exposure_auto_on = entry_exposure_auto_on.GetValue()
+        node_exposure_auto.SetIntValue(exposure_auto_on)
+
+        node_exposure_limit = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
+        if not PySpin.IsReadable(node_exposure_limit) or not PySpin.IsWritable(node_exposure_limit):
+            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
+            return False
+        node_exposure_limit.SetValue(FRAMERATE)
+
        # timed mode 
         node_exposure_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
         if not PySpin.IsReadable(node_exposure_mode) or not PySpin.IsWritable(node_exposure_mode):
@@ -268,12 +275,12 @@ def config_camera(nodemap):
         gain_auto_off = entry_gain_auto_off.GetValue()
         node_exposure_mode.SetIntValue(gain_auto_off)
         # Set exposure time
-        node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
-        if not PySpin.IsReadable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
-            print('\nUnable to set Exposure Time (float retrieval). Aborting...\n')
-            return False
-        # Set exposure time to 10000 us
-        node_exposure_time.SetValue(EXPOSURE_TIME)
+        # node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
+        # if not PySpin.IsReadable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
+        #     print('\nUnable to set Exposure Time (float retrieval). Aborting...\n')
+        #     return False
+        # # Set exposure time to 10000 us
+        # node_exposure_time.SetValue(EXPOSURE_TIME)
 
         
         """ -------------------- 设置增益 -------------------- """
