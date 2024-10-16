@@ -187,36 +187,36 @@ def config_camera(nodemap):
         if not PySpin.IsAvailable(node_trigger_source) or not PySpin.IsWritable(node_trigger_source):
             print('\nUnable to set Trigger Source (enumeration retrieval). Aborting...\n')
             return False
-        entry_trigger_source_line3 = node_trigger_source.GetEntryByName('Line3')
-        if not PySpin.IsAvailable(entry_trigger_source_line3) or not PySpin.IsReadable(entry_trigger_source_line3):
+        entry_trigger_source_soft = node_trigger_source.GetEntryByName('Software')
+        if not PySpin.IsAvailable(entry_trigger_source_soft) or not PySpin.IsReadable(entry_trigger_source_soft):
             print('\nUnable to enter Trigger Source Line3. Aborting...\n')
             return False
-        trigger_source_line3 = entry_trigger_source_line3.GetValue()
-        node_trigger_source.SetIntValue(trigger_source_line3)
+        trigger_source_soft = entry_trigger_source_soft.GetValue()
+        node_trigger_source.SetIntValue(trigger_source_soft)
 
 #
         node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
         if not PySpin.IsAvailable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
             print('\nUnable to set Trigger Mode (enumeration retrieval). Aborting...\n')
             return False
-        node_trigger_mode.SetIntValue(PySpin.TriggerMode_On)
+        node_trigger_mode.SetIntValue(PySpin.TriggerMode_Off)
         
-        node_trigger_activation = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
-        if not PySpin.IsAvailable(node_trigger_activation) or not PySpin.IsWritable(node_trigger_activation):
-            print('\nUnable to set Trigger Activation (enumeration retrieval). Aborting...\n')
-            return False
-        entry_trigger_activation_risingedge = node_trigger_activation.GetEntryByName('RisingEdge')
-        if not PySpin.IsAvailable(entry_trigger_activation_risingedge) or not PySpin.IsReadable(entry_trigger_activation_risingedge):
-            print('\nUnable to enter Trigger Activation Rising Edge. Aborting...\n')
-            return False
-        trigger_activation_risingedge = entry_trigger_activation_risingedge.GetValue()
-        node_trigger_activation.SetIntValue(trigger_activation_risingedge)
+        # node_trigger_activation = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
+        # if not PySpin.IsAvailable(node_trigger_activation) or not PySpin.IsWritable(node_trigger_activation):
+        #     print('\nUnable to set Trigger Activation (enumeration retrieval). Aborting...\n')
+        #     return False
+        # entry_trigger_activation_risingedge = node_trigger_activation.GetEntryByName('RisingEdge')
+        # if not PySpin.IsAvailable(entry_trigger_activation_risingedge) or not PySpin.IsReadable(entry_trigger_activation_risingedge):
+        #     print('\nUnable to enter Trigger Activation Rising Edge. Aborting...\n')
+        #     return False
+        # trigger_activation_risingedge = entry_trigger_activation_risingedge.GetValue()
+        # node_trigger_activation.SetIntValue(trigger_activation_risingedge)
 
-        node_trigger_overlap = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
-        if not PySpin.IsAvailable(node_trigger_overlap) or not PySpin.IsWritable(node_trigger_overlap):
-            print('\nUnable to set Trigger Overlap (enumeration retrieval). Aborting...\n')
-            return False
-        node_trigger_overlap.SetIntValue(PySpin.TriggerOverlap_ReadOut)
+        # node_trigger_overlap = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
+        # if not PySpin.IsAvailable(node_trigger_overlap) or not PySpin.IsWritable(node_trigger_overlap):
+        #     print('\nUnable to set Trigger Overlap (enumeration retrieval). Aborting...\n')
+        #     return False
+        # node_trigger_overlap.SetIntValue(PySpin.TriggerOverlap_ReadOut)
 
         """-----------------------设置捕获方式-------------------"""
         # Set acquisition mode to continuous
