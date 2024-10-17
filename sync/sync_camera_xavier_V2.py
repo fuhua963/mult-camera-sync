@@ -19,6 +19,8 @@ from metavision_core.event_io import EventsIterator
 from metavision_hal import I_TriggerIn
 from metavision_core.event_io.raw_reader import initiate_device
 
+
+# 全局变量设置
 #  flir camera set
 NUM_IMAGES = 120+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
@@ -26,6 +28,7 @@ NUM_IMAGES = 120+1  # number of images to save
 ## flir camera set
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
+Auto_Exposure = False
 OFFSET_X = 224
 OFFSET_Y = 524
 WIDTH = 2000
@@ -40,7 +43,7 @@ chosenAviType = AviType.UNCOMPRESSED  # change me!
 # prophesee camera set
 stc_filter_ths = 10000  # Length of the time window for filtering (in us)
 stc_cut_trail = True  # If true, after an event goes through, it removes all events until change of polarity
-#全局变量  
+
 nameoutglob = 1
 acquisition_flag = 0   # 保证 evk4 的采集
 # 硬件裁剪
@@ -55,19 +58,19 @@ frequency =int(FRAMERATE) # 设置频率
 duty_cycle = 50 # 设置占空比为50
 trigger_io = 11
 GPIO.setmode(GPIO.BOARD)
-# GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
-# trigger_flag = 0
-
 def trigger_star(out_io,fre,duty_cycle):
     GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
-    pwm = GPIO.PWM(out_io, fre)	# 50Hz
-    pwm.start(duty_cycle)	# 占空比为50%
-
-    # 等待1秒
-    time.sleep(1)
-
-    pwm.stop()
+    # pwm = GPIO.PWM(out_io, fre)	# 50Hz
+    # pwm.start(duty_cycle)	# 占空比为50%
+    # pwm.stop()
+    for i in range(NUM_IMAGES):
+        GPIO.output(out_io, GPIO.HIGH)
+        time.sleep(0.5/fre)
+        GPIO.output(out_io, GPIO.LOW)
+        time.sleep(0.5/fre)
     GPIO.cleanup()
+    return 0
+
 
 
 class event():
@@ -242,36 +245,56 @@ def config_camera(nodemap):
         node_acquisition_framerate.SetValue(FRAMERATE)
 
         """ -------------------- 设置曝光时间 -------------------- """
-        # Turn off auto exposure
-        node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
-        if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
-            print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
-            return False
-        entry_exposure_auto_off = node_exposure_auto.GetEntryByName('Off')
-        if not PySpin.IsReadable(entry_exposure_auto_off):
-            print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
-            return False
-        exposure_auto_off = entry_exposure_auto_off.GetValue()
-        node_exposure_auto.SetIntValue(exposure_auto_off)
-       # timed mode 
-        node_exposure_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
-        if not PySpin.IsReadable(node_exposure_mode) or not PySpin.IsWritable(node_exposure_mode):
-            print('\nUnable to set Exposure Mode (enumeration retrieval). Aborting...\n')
-            return False
-        # node_exposure_mode.SetIntValue(PySpin.ExposureMode_Timed)
-        entry_gain_auto_off = node_exposure_mode.GetEntryByName('Timed')
-        if not PySpin.IsReadable(entry_gain_auto_off):
-            print('\nUnable to set Gain Auto (entry retrieval). Aborting...\n')
-            return False
-        gain_auto_off = entry_gain_auto_off.GetValue()
-        node_exposure_mode.SetIntValue(gain_auto_off)
-        # Set exposure time
-        node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
-        if not PySpin.IsReadable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
-            print('\nUnable to set Exposure Time (float retrieval). Aborting...\n')
-            return False
-        # Set exposure time to 10000 us
-        node_exposure_time.SetValue(EXPOSURE_TIME)
+        if Auto_Exposure:
+            # Turn on auto exposure
+            node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
+            if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
+                print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
+                return False
+            entry_exposure_auto_on = node_exposure_auto.GetEntryByName('On')
+            if not PySpin.IsReadable(entry_exposure_auto_on):
+                print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
+                return False
+            exposure_auto_on = entry_exposure_auto_on.GetValue()
+            node_exposure_auto.SetIntValue(exposure_auto_on)
+
+            # set AutoExposureExposureTimeUpperLimit is 500000
+            node_exposure_time_upper_limit = PySpin.CFloatPtr(nodemap.GetNode('AutoExposureExposureTimeUpperLimit'))
+            if not PySpin.IsReadable(node_exposure_time_upper_limit) or not PySpin.IsWritable(node_exposure_time_upper_limit):
+                print('\nUnable to set Exposure Time Upper Limit (float retrieval). Aborting...\n')
+                return False
+            node_exposure_time_upper_limit.SetValue(500000)
+        else:
+            # Turn off auto exposure
+            node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
+            if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
+                print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
+                return False
+            entry_exposure_auto_off = node_exposure_auto.GetEntryByName('Off')
+            if not PySpin.IsReadable(entry_exposure_auto_off):
+                print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
+                return False
+            exposure_auto_off = entry_exposure_auto_off.GetValue()
+            node_exposure_auto.SetIntValue(exposure_auto_off)
+            # timed mode 
+            node_exposure_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
+            if not PySpin.IsReadable(node_exposure_mode) or not PySpin.IsWritable(node_exposure_mode):
+                print('\nUnable to set Exposure Mode (enumeration retrieval). Aborting...\n')
+                return False
+            # node_exposure_mode.SetIntValue(PySpin.ExposureMode_Timed)
+            entry_gain_auto_off = node_exposure_mode.GetEntryByName('Timed')
+            if not PySpin.IsReadable(entry_gain_auto_off):
+                print('\nUnable to set Gain Auto (entry retrieval). Aborting...\n')
+                return False
+            gain_auto_off = entry_gain_auto_off.GetValue()
+            node_exposure_mode.SetIntValue(gain_auto_off)
+            # Set exposure time
+            node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
+            if not PySpin.IsReadable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
+                print('\nUnable to set Exposure Time (float retrieval). Aborting...\n')
+                return False
+            # Set exposure time to 10000 us
+            node_exposure_time.SetValue(EXPOSURE_TIME)
 
         
         """ -------------------- 设置增益 -------------------- """
@@ -886,13 +909,11 @@ def main():
             prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
             prophesee_thread.start()
             # pwm generate
-            GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
-            # pwm = GPIO.PWM(trigger_io, frequency)	# 50Hz
-            # pwm.start(duty_cycle)	# 占空比为50%
+            trigger =Thread(trigger_star(trigger_io,frequency,duty_cycle),args=())
+            trigger.start()
             result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
             # pwm.stop()
-            GPIO.cleanup()
-
+            trigger.join()
             acquisition_flag = 1
             prophesee_cam.stop_recording()
             prophesee_cam.prophesee_tirgger_found()
