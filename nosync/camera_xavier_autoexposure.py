@@ -249,7 +249,7 @@ def config_camera(nodemap):
         if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
             print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
             return False
-        entry_exposure_auto_on = node_exposure_auto.GetEntryByName('On')
+        entry_exposure_auto_on = node_exposure_auto.GetEntryByName('Continuous')
         if not PySpin.IsReadable(entry_exposure_auto_on):
             print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
             return False

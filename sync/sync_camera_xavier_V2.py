@@ -246,24 +246,24 @@ def config_camera(nodemap):
 
         """ -------------------- 设置曝光时间 -------------------- """
         if Auto_Exposure:
-            # Turn on auto exposure
-            node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
-            if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
-                print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
-                return False
-            entry_exposure_auto_on = node_exposure_auto.GetEntryByName('On')
-            if not PySpin.IsReadable(entry_exposure_auto_on):
-                print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
-                return False
-            exposure_auto_on = entry_exposure_auto_on.GetValue()
-            node_exposure_auto.SetIntValue(exposure_auto_on)
-
             # set AutoExposureExposureTimeUpperLimit is 500000
             node_exposure_time_upper_limit = PySpin.CFloatPtr(nodemap.GetNode('AutoExposureExposureTimeUpperLimit'))
             if not PySpin.IsReadable(node_exposure_time_upper_limit) or not PySpin.IsWritable(node_exposure_time_upper_limit):
                 print('\nUnable to set Exposure Time Upper Limit (float retrieval). Aborting...\n')
                 return False
-            node_exposure_time_upper_limit.SetValue(500000)
+            node_exposure_time_upper_limit.SetValue(5000000)
+            
+            # Turn on auto exposure
+            node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
+            if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
+                print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
+                return False
+            entry_exposure_auto_on = node_exposure_auto.GetEntryByName('Continuous')
+            if not PySpin.IsReadable(entry_exposure_auto_on):
+                print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
+                return False
+            exposure_auto_on = entry_exposure_auto_on.GetValue()
+            node_exposure_auto.SetIntValue(exposure_auto_on)
         else:
             # Turn off auto exposure
             node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
