@@ -8,6 +8,7 @@ import tkinter as tk
 import tkinter.font as tkf
 from threading import Thread
 import numpy as np
+import queue
 import cv2 as cv
 sys.path.append("/home/nvidia/openeb/sdk/modules/core/python/pypkg")
 sys.path.append("/home/nvidia/openeb/build/py3")
@@ -22,13 +23,15 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 # 全局变量设置
 #  flir camera set
-NUM_IMAGES = 120+1  # number of images to save
+NUM_IMAGES = 20+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
 Auto_Exposure = False
+EX_Trigger = False
+Save_mode = True  ## 单张存false npy true
 OFFSET_X = 224
 OFFSET_Y = 524
 WIDTH = 2000
@@ -57,8 +60,10 @@ expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
 duty_cycle = 50 # 设置占空比为50
 trigger_io = 11
-GPIO.setmode(GPIO.BOARD)
+
+
 def trigger_star(out_io,fre,duty_cycle):
+    GPIO.setmode(GPIO.BOARD)
     GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
     # pwm = GPIO.PWM(out_io, fre)	# 50Hz
     # pwm.start(duty_cycle)	# 占空比为50%
@@ -68,6 +73,12 @@ def trigger_star(out_io,fre,duty_cycle):
         time.sleep(0.5/fre)
         GPIO.output(out_io, GPIO.LOW)
         time.sleep(0.5/fre)
+<<<<<<< HEAD
+=======
+        print(i)
+
+    print("pulse is over ")
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
     GPIO.cleanup()
     return 0
 
@@ -145,16 +156,28 @@ class event():
 
         mv_iterator = EventsIterator.from_device(device=self.device, max_duration=1200000000)
         # 接受事件流
+<<<<<<< HEAD
         height, width = mv_iterator.get_size()  # Camera Geometry
         print(f"height = {height}, width = {width}")
         global acquisition_flag
+=======
+        print("events stream start")
+        height, width = mv_iterator.get_size()  # Camera Geometry
+        print(f"height = {height}, width = {width}")
+        global acquisition_flag
+        print("flag is ",acquisition_flag)
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
         for evs in mv_iterator:
             if acquisition_flag == 1:
                 break
         return 0
     def stop_recording(self):
         self.ieventstream.stop_log_raw_data()
+<<<<<<< HEAD
         print("stop recording")
+=======
+        print("event stop recording")
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
         del self.device
 
         return 0
@@ -205,6 +228,21 @@ def config_camera(nodemap):
     try:
         result = True
         """ -------------------- 设置ROI -------------------- """
+<<<<<<< HEAD
+=======
+        node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
+        if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
+            print('\nUnable to set Width (integer retrieval). Aborting...\n')
+            return False
+        node_width.SetValue(WIDTH)
+
+        node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
+        if not PySpin.IsAvailable(node_height) or not PySpin.IsWritable(node_height):
+            print('\nUnable to set Height (integer retrieval). Aborting...\n')
+            return False
+        node_height.SetValue(HEIGHT)
+
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
         node_offset_x = PySpin.CIntegerPtr(nodemap.GetNode('OffsetX'))
         if not PySpin.IsAvailable(node_offset_x) or not PySpin.IsWritable(node_offset_x):
             print('\nUnable to set Offset X (integer retrieval). Aborting...\n')
@@ -217,6 +255,7 @@ def config_camera(nodemap):
             return False
         node_offset_y.SetValue(OFFSET_Y)
 
+<<<<<<< HEAD
         node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
         if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
             print('\nUnable to set Width (integer retrieval). Aborting...\n')
@@ -230,6 +269,9 @@ def config_camera(nodemap):
         node_height.SetValue(HEIGHT)
 
 
+=======
+ 
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
 
         """ -------------------- 设置帧率 -------------------- """
         node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
@@ -331,6 +373,7 @@ def config_camera(nodemap):
         node_device_link_throughput_limit.SetValue(43000000)
         
         """ -------------------- 设置信号输入 -------------------- """
+<<<<<<< HEAD
         node_trigger_selector = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
         if not PySpin.IsAvailable(node_trigger_selector) or not PySpin.IsWritable(node_trigger_selector):
             print('\nUnable to set Trigger Selector (enumeration retrieval). Aborting...\n')
@@ -377,6 +420,73 @@ def config_camera(nodemap):
             print('\nUnable to set Trigger Overlap (enumeration retrieval). Aborting...\n')
             return False
         node_trigger_overlap.SetIntValue(PySpin.TriggerOverlap_ReadOut)
+=======
+        if EX_Trigger:
+            node_trigger_selector = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
+            if not PySpin.IsAvailable(node_trigger_selector) or not PySpin.IsWritable(node_trigger_selector):
+                print('\nUnable to set Trigger Selector (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_selector = node_trigger_selector.GetEntryByName('FrameStart')
+            if not PySpin.IsAvailable(entry_trigger_selector) or not PySpin.IsReadable(entry_trigger_selector):
+                print('\nUnable to enter Trigger Selector FrameStart. Aborting...\n')
+                return False
+            trigger_selector_framestart = entry_trigger_selector.GetValue()
+            node_trigger_selector.SetIntValue(trigger_selector_framestart)
+            
+
+            node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+            if not PySpin.IsAvailable(node_trigger_source) or not PySpin.IsWritable(node_trigger_source):
+                print('\nUnable to set Trigger Source (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_source_line3 = node_trigger_source.GetEntryByName('Line3')
+            if not PySpin.IsAvailable(entry_trigger_source_line3) or not PySpin.IsReadable(entry_trigger_source_line3):
+                print('\nUnable to enter Trigger Source Line3. Aborting...\n')
+                return False
+            trigger_source_line3 = entry_trigger_source_line3.GetValue()
+            node_trigger_source.SetIntValue(trigger_source_line3)
+
+    #
+            node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
+            if not PySpin.IsAvailable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
+                print('\nUnable to set Trigger Mode (enumeration retrieval). Aborting...\n')
+                return False
+            node_trigger_mode.SetIntValue(PySpin.TriggerMode_On)
+            
+            node_trigger_activation = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
+            if not PySpin.IsAvailable(node_trigger_activation) or not PySpin.IsWritable(node_trigger_activation):
+                print('\nUnable to set Trigger Activation (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_activation_risingedge = node_trigger_activation.GetEntryByName('RisingEdge')
+            if not PySpin.IsAvailable(entry_trigger_activation_risingedge) or not PySpin.IsReadable(entry_trigger_activation_risingedge):
+                print('\nUnable to enter Trigger Activation Rising Edge. Aborting...\n')
+                return False
+            trigger_activation_risingedge = entry_trigger_activation_risingedge.GetValue()
+            node_trigger_activation.SetIntValue(trigger_activation_risingedge)
+
+            node_trigger_overlap = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
+            if not PySpin.IsAvailable(node_trigger_overlap) or not PySpin.IsWritable(node_trigger_overlap):
+                print('\nUnable to set Trigger Overlap (enumeration retrieval). Aborting...\n')
+                return False
+            node_trigger_overlap.SetIntValue(PySpin.TriggerOverlap_ReadOut)
+        else:
+            node_trigger_selector = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
+            if not PySpin.IsAvailable(node_trigger_selector) or not PySpin.IsWritable(node_trigger_selector):
+                print('\nUnable to set Trigger Selector (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_selector = node_trigger_selector.GetEntryByName('FrameStart')
+            if not PySpin.IsAvailable(entry_trigger_selector) or not PySpin.IsReadable(entry_trigger_selector):
+                print('\nUnable to enter Trigger Selector FrameStart. Aborting...\n')
+                return False
+            trigger_selector_framestart = entry_trigger_selector.GetValue()
+            node_trigger_selector.SetIntValue(trigger_selector_framestart)
+
+            node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
+            if not PySpin.IsAvailable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
+                print('\nUnable to set Trigger Mode (enumeration retrieval). Aborting...\n')
+                return False
+            node_trigger_mode.SetIntValue(PySpin.TriggerMode_Off)
+
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
 
         """-----------------------设置捕获方式-------------------"""
         # Set acquisition mode to continuous
@@ -387,9 +497,12 @@ def config_camera(nodemap):
         node_acquisition_mode.SetIntValue(PySpin.AcquisitionMode_Continuous)
 
 
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
         """ -------------------- 设置数据块 -------------------- """
         chunk_mode_active = PySpin.CBooleanPtr(nodemap.GetNode('ChunkModeActive'))
         if not PySpin.IsWritable(chunk_mode_active):
@@ -586,7 +699,11 @@ def read_chunk_data(image):
         result = False
     return result, exposure_time, timestamp
 
+<<<<<<< HEAD
 def acquire_images(cam, nodemap):
+=======
+def acquire_images(cam, nodemap,path,mode):
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
     """
     This function acquires and saves 10 images from a device.
     Please see Acquisition example for more in-depth comments on acquiring images.
@@ -618,6 +735,15 @@ def acquire_images(cam, nodemap):
         # By default, if no specific color processing algorithm is set, the image
         # processor will default to NEAREST_NEIGHBOR method.
         processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
+<<<<<<< HEAD
+=======
+
+
+        if mode:
+            pass
+        else:
+            pass
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
         
         images = list()
         timestamps = list()
@@ -640,7 +766,10 @@ def acquire_images(cam, nodemap):
                     width = image_result.GetWidth()
                     height = image_result.GetHeight()
                     print('Grabbed Image %d, width = %d, height = %d' % (i, width, height))
+<<<<<<< HEAD
                     
+=======
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
                     # Read chunk data
                     result, exposure_time, timestamp = read_chunk_data(image_result)
                     exposure_times.append(exposure_time)
@@ -660,13 +789,48 @@ def acquire_images(cam, nodemap):
         # End acquisition
         print(f'we acquiring {len(images)} images')
         cam.EndAcquisition()
+<<<<<<< HEAD
         
 
+=======
+
+
+        global acquisition_flag
+        print("flag is ",acquisition_flag )
+        acquisition_flag = 1
+
+        print('start saving images...')
+        et_txt = open(os.path.join(path, 'exposure_times.txt'), 'w')
+        ts_txt = open(os.path.join(path, 'timestamps.txt'), 'w')
+        for i in range(len(images)):
+            et_txt.write('%s\n' % exposure_times[i])
+            ts_txt.write('%s\n' % timestamps[i])
+            # filename = os.path.join(path, str(i).rjust(5, '0') + ".png")
+            # images[i].Save(filename)
+        # 丢弃第一张图片
+        print(f'total {len(images)} images')
+        images[:] = images[1:] 
+        print(f'after discarding first image, we have {len(images)} images')
+        index = len(images)//2
+        filename = os.path.join(path, 'image_center.png')
+        cv.imwrite(filename, images[index])
+        images = np.array(images)
+        filename = os.path.join(path, 'image')
+        np.save(filename,images)
+        et_txt.close()
+        ts_txt.close()
+        print('end saving images...')
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
     except PySpin.SpinnakerException as ex:
         print('Error: %s' % ex)
         result = False
 
+<<<<<<< HEAD
     return result, images, exposure_times, timestamps
+=======
+    # return result, images, exposure_times, timestamps
+    return 0
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
 
 
 def save_images(images, exposure_times, timestamps, path):
@@ -907,6 +1071,7 @@ def main():
             # 多线程执行 
             print("线程开始")
             prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
+<<<<<<< HEAD
             prophesee_thread.start()
             # pwm generate
             trigger =Thread(trigger_star(trigger_io,frequency,duty_cycle),args=())
@@ -919,6 +1084,30 @@ def main():
             prophesee_cam.prophesee_tirgger_found()
             # Save image    
             result &= save_images(images, exposure_times, timestamps, path)
+=======
+            global Save_mode
+            flir_thread = Thread(target=acquire_images(cam,nodemap,path,Save_mode),args=())
+            # pwm generate
+            trigger_thread =Thread(target=trigger_star(trigger_io,frequency,duty_cycle),args=())
+
+            prophesee_thread.start()
+            flir_thread.start()
+            trigger_thread.start()
+            
+            # result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
+            # trigger_thread.join()
+            flir_thread.join()
+            # prophesee_thread.join()
+            # 将存放都放在了 acquire 函数里
+            try : 
+                # pwm.stop()
+                acquisition_flag = 1
+                prophesee_cam.stop_recording()
+                # prophesee_cam.prophesee_tirgger_found()
+            except :
+                print("save is wrong")
+    
+>>>>>>> 585ecfdcfa64c1cc39d24bb5db8f6c945ec25d9b
             # result &= save_list_to_avi(nodemap, nodemap_tldevice, images,path)
             # Disable chunk data
             result &= disable_chunk_data(nodemap)
