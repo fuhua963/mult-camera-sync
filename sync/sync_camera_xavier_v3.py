@@ -92,6 +92,14 @@ class event():
                 a = ev_data.load_n_events(1000000)
             triggers = ev_data.get_ext_trigger_events()
         print(f"total triggers num = {len(triggers)} pos and neg")
+
+        #---------------需要测试触发信号的数量和时间----------------#
+        print(f"the first trigger is {triggers['p'][0]} ,and time is {triggers['t'][0]}")
+        print(f"the second trigger is {triggers['p'][1]} ,and time is {triggers['t'][1]}")
+        print(f"the last trigger is {triggers['p'][-1]} ,and time is {triggers['t'][-1]}")
+
+
+
         # 1 is neg , 0 is pos
         if polarity in (0, 1): 
             triggers = triggers[triggers['p'] == polarity].copy()
@@ -99,7 +107,8 @@ class event():
             triggers = triggers.copy()
         try:
             print(f"pos triggers num = {len(triggers)}")
-            triggers = triggers[:NUM_IMAGES-1]
+            triggers = triggers[:NUM_IMAGES-1]     
+            
             print(f"we need pos triggers num = {len(triggers)}")
             trigger_polar, trigger_time, cam = zip(*triggers)
             trigger_polar = np.array(trigger_polar)
@@ -624,10 +633,6 @@ def acquire_images(cam, nodemap,path,mode):
         result = True
 
 
-        # #  Begin acquiring images
-        # cam.BeginAcquisition()
-
-        # Retrieve, convert, and save images
 
         # Create ImageProcessor instance for post processing images
         processor = PySpin.ImageProcessor()
@@ -697,18 +702,15 @@ def acquire_images(cam, nodemap,path,mode):
         for i in range(len(images)):
             et_txt.write('%s\n' % exposure_times[i])
             ts_txt.write('%s\n' % timestamps[i])
-            # filename = os.path.join(path, str(i).rjust(5, '0') + ".png")
-            # images[i].Save(filename)
+            filename = os.path.join(path, str(i).rjust(5, '0') + ".png")
+            images[i].Save(filename)
         # 丢弃第一张图片
         print(f'total {len(images)} images')
         images[:] = images[1:] 
         print(f'after discarding first image, we have {len(images)} images')
-        index = len(images)//2
-        filename = os.path.join(path, 'image_center.png')
-        cv.imwrite(filename, images[index])
-        images = np.array(images)
-        filename = os.path.join(path, 'image')
-        np.save(filename,images)
+        # images = np.array(images)
+        # filename = os.path.join(path, 'image')
+        # np.save(filename,images)
         et_txt.close()
         ts_txt.close()
         print('end saving images...')
@@ -943,26 +945,19 @@ def main():
             # Configure camera
             if config_camera(nodemap) is False:
                 return False
-            # acquire images
+            # acquire images  flag 
             global acquisition_flag
             acquisition_flag = 0
             #  Begin acquiring images
             cam.BeginAcquisition()
-            #pip pwm config
-            try:
-                print("pigpiod is running")
-            except:
-                print("pigpiod is pre running")
-
-
-            # 多线程执行 
+            # 多线程配置 
             print("线程开始")
             prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
             global Save_mode
             flir_thread = Thread(target=acquire_images(cam,nodemap,path,Save_mode),args=())
             # pwm generate
             trigger_thread =Thread(target=trigger_star(trigger_io,frequency,duty_cycle),args=())
-
+            #多线程启动
             prophesee_thread.start()
             flir_thread.start()
             trigger_thread.start()
@@ -974,9 +969,9 @@ def main():
             # 将存放都放在了 acquire 函数里
             try : 
                 # pwm.stop()
-                acquisition_flag = 1
+                # acquisition_flag = 1
                 prophesee_cam.stop_recording()
-                # prophesee_cam.prophesee_tirgger_found()
+                prophesee_cam.prophesee_tirgger_found()
             except :
                 print("save is wrong")
     
