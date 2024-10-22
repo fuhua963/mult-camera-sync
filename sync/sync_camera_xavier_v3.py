@@ -30,7 +30,7 @@ NUM_IMAGES = 20+1  # number of images to save
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
 Auto_Exposure = False   #自动曝光设置
-EX_Trigger = False      #触发方式设置
+EX_Trigger = True      #触发方式设置
 Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
@@ -703,7 +703,8 @@ def acquire_images(cam, nodemap,path,mode):
             et_txt.write('%s\n' % exposure_times[i])
             ts_txt.write('%s\n' % timestamps[i])
             filename = os.path.join(path, str(i).rjust(5, '0') + ".png")
-            images[i].Save(filename)
+            # images[i].Save(filename)
+            cv.imwrite(filename, images[i])
         # 丢弃第一张图片
         print(f'total {len(images)} images')
         images[:] = images[1:] 
@@ -964,16 +965,17 @@ def main():
             
             # result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
             # trigger_thread.join()
-            flir_thread.join()
+            # flir_thread.join()
             # prophesee_thread.join()
             # 将存放都放在了 acquire 函数里
-            try : 
-                # pwm.stop()
-                # acquisition_flag = 1
-                prophesee_cam.stop_recording()
-                prophesee_cam.prophesee_tirgger_found()
-            except :
-                print("save is wrong")
+            while(acquisition_flag):
+                try : 
+                    # pwm.stop()
+                    acquisition_flag = 0 # 结束了采集
+                    prophesee_cam.stop_recording()
+                    prophesee_cam.prophesee_tirgger_found()
+                except :
+                    print("save is wrong")
     
             # result &= save_list_to_avi(nodemap, nodemap_tldevice, images,path)
             # Disable chunk data
