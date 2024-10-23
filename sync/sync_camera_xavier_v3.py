@@ -959,23 +959,22 @@ def main():
             # pwm generate
             trigger_thread =Thread(target=trigger_star(trigger_io,frequency,duty_cycle),args=())
             #多线程启动
-            prophesee_thread.start()
-            flir_thread.start()
+            # prophesee_thread.start()
+            # flir_thread.start()
             trigger_thread.start()
             
             # result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
-            trigger_thread.join()
-            flir_thread.join()
+            # trigger_thread.join()
+            # flir_thread.join()
             prophesee_thread.join()
             # 将存放都放在了 acquire 函数里
-            while(acquisition_flag):
-                try : 
-                    # pwm.stop()
-                    acquisition_flag = 0 # 结束了采集
-                    prophesee_cam.stop_recording()
-                    prophesee_cam.prophesee_tirgger_found()
-                except :
-                    print("save is wrong")
+            # try : 
+            #     # pwm.stop()
+            #     acquisition_flag = 0 # 结束了采集
+            #     prophesee_cam.stop_recording()
+            #     prophesee_cam.prophesee_tirgger_found()
+            # except :
+            #     print("save is wrong")
     
             # result &= save_list_to_avi(nodemap, nodemap_tldevice, images,path)
             # Disable chunk data
