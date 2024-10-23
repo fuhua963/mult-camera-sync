@@ -964,9 +964,9 @@ def main():
             trigger_thread.start()
             
             # result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
-            # trigger_thread.join()
-            # flir_thread.join()
-            # prophesee_thread.join()
+            trigger_thread.join()
+            flir_thread.join()
+            prophesee_thread.join()
             # 将存放都放在了 acquire 函数里
             while(acquisition_flag):
                 try : 
