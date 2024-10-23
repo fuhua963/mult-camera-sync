@@ -162,7 +162,11 @@ class event():
         print(f"height = {height}, width = {width}")
         global acquisition_flag
         print("flag is ",acquisition_flag)
+        num = 0 
         for evs in mv_iterator:
+            num += 1
+            if num >10:
+                break
             if acquisition_flag == 1:
                 break
         return 0
@@ -346,6 +350,7 @@ def config_camera(nodemap):
         
         """ -------------------- 设置信号输入 -------------------- """
         if EX_Trigger:
+            print("now is ex trigger \n")
             node_trigger_selector = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
             if not PySpin.IsAvailable(node_trigger_selector) or not PySpin.IsWritable(node_trigger_selector):
                 print('\nUnable to set Trigger Selector (enumeration retrieval). Aborting...\n')
@@ -955,26 +960,25 @@ def main():
             print("线程开始")
             prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
             global Save_mode
-            flir_thread = Thread(target=acquire_images(cam,nodemap,path,Save_mode),args=())
-            # pwm generate
-            trigger_thread =Thread(target=trigger_star(trigger_io,frequency,duty_cycle),args=())
+            flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
+            # # pwm generate
+            trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
             #多线程启动
-            # prophesee_thread.start()
-            # flir_thread.start()
+            prophesee_thread.start()
+            flir_thread.start()
             trigger_thread.start()
             
             # result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
-            # trigger_thread.join()
-            # flir_thread.join()
+            trigger_thread.join()
+            flir_thread.join()
             prophesee_thread.join()
             # 将存放都放在了 acquire 函数里
-            # try : 
-            #     # pwm.stop()
-            #     acquisition_flag = 0 # 结束了采集
-            #     prophesee_cam.stop_recording()
-            #     prophesee_cam.prophesee_tirgger_found()
-            # except :
-            #     print("save is wrong")
+            try : 
+                acquisition_flag = 0 # 结束了采集
+                prophesee_cam.stop_recording()
+                prophesee_cam.prophesee_tirgger_found()
+            except :
+                print("save is wrong")
     
             # result &= save_list_to_avi(nodemap, nodemap_tldevice, images,path)
             # Disable chunk data
