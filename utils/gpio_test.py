@@ -9,18 +9,20 @@ output_pin = 11  # 可以根据你的实际需求修改这个引脚编号
 
 # 将引脚设置为输出模式
 GPIO.setup(output_pin, GPIO.OUT)
+# GPIO.output(output_pin, GPIO.LOW)
+# GPIO.cleanup()
 
 try:
     while True:
         # 设置引脚为高电平
         GPIO.output(output_pin, GPIO.HIGH)
         print(f"引脚 {output_pin}: 高电平")
-        time.sleep(0.1)
+        time.sleep(0.02)
 
         # 设置引脚为低电平
         GPIO.output(output_pin, GPIO.LOW)
         print(f"引脚 {output_pin}: 低电平")
-        time.sleep(0.1)
+        time.sleep(0.02)
 
 except KeyboardInterrupt:
     # 捕获Ctrl+C信号来终止程序

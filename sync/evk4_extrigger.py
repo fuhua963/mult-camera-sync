@@ -23,7 +23,7 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 
 # 全局变量设置
-NUM_IMAGES = 4+1  # number of images to save
+NUM_IMAGES = 20+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
@@ -63,11 +63,17 @@ GPIO.setmode(GPIO.BOARD)
 GPIO.setup(trigger_io, GPIO.OUT, initial=GPIO.LOW)
 def trigger_star(out_io,fre,duty_cycle):
     for i in range(NUM_IMAGES):
-        GPIO.output(out_io, GPIO.HIGH)
-        time.sleep(0.5/fre)
-        GPIO.output(out_io, GPIO.LOW)
-        time.sleep(0.5/fre)
-        print(i)
+        try:
+            # while (1):
+            GPIO.output(out_io, GPIO.HIGH)
+            time.sleep(0.5/fre)
+            GPIO.output(out_io, GPIO.LOW)
+            time.sleep(0.5/fre)
+            # print(i)  
+        except KeyboardInterrupt:
+            # 捕获Ctrl+C信号来终止程序
+            print("程序终止")
+
 
     print("pulse is over ")
     global acquisition_flag
