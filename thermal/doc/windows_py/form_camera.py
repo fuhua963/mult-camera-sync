@@ -88,7 +88,7 @@ class Form_Camera(QWidget, Ui_Form_Camera):
         pathbytes = str.encode(path)
         self.mutex.acquire()
         if self.isConnect == 1:
-            sdk_saveframe2jpg(pathbytes, self.sframe, self.rgb)
+            sdk_saveframe2jpg(pathbytes, byref(self.sframe), byref(self.rgb))
         self.mutex.release()
 
     def form_isConnect(self):
