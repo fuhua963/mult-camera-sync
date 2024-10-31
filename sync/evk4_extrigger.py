@@ -35,7 +35,7 @@ Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
 duty_cycle = 50 # 设置占空比为50
-trigger_io = 11
+trigger_io = 18
 
 # prophesee camera set
 stc_filter_ths = 10000  # Length of the time window for filtering (in us)
