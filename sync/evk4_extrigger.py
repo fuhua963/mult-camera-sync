@@ -73,8 +73,6 @@ def trigger_star(out_io,fre,duty_cycle):
         except KeyboardInterrupt:
             # 捕获Ctrl+C信号来终止程序
             print("程序终止")
-
-
     print("pulse is over ")
     global acquisition_flag
     acquisition_flag = 1
@@ -222,8 +220,9 @@ def main():
     ensure_dir(path) 
     prophesee_cam = event(0,path)
     prophesee_cam.config_prophesee()
+    while(1):
+    	print("set")
     # Run example on each camera
-
     global acquisition_flag
     acquisition_flag = 0
     # 多线程配置 
@@ -232,9 +231,6 @@ def main():
     trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
     #多线程启动
     prophesee_thread.start()
-
-
-    time.sleep(1)
     trigger_thread.start()
     
     trigger_thread.join()
