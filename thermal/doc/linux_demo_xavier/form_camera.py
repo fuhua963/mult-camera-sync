@@ -52,6 +52,8 @@ class Form_Camera(QWidget, Ui_Form_Camera):
         self.imgsize[1] = frame.width
         self.mutex.acquire()
         self.sframe = frame
+        # sdk_frame2gray(byref(self.sframe), byref(self.gray))
+        # sdk_gray2rgb(byref(self.gray), byref(self.rgb), self.imgsize[1], self.imgsize[0], 0, 1)
         sdk_frame2gray(byref(self.sframe), byref(self.gray))
         sdk_gray2rgb(byref(self.gray), byref(self.rgb), self.imgsize[1], self.imgsize[0], 0, 1)
         self.mutex.release()

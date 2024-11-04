@@ -66,14 +66,15 @@ def trigger_star(out_io,fre,duty_cycle):
         try:
             # while (1):
             GPIO.output(out_io, GPIO.HIGH)
-            time.sleep(0.5/fre)
+            time.sleep(0.3/fre)
             GPIO.output(out_io, GPIO.LOW)
-            time.sleep(0.5/fre)
+            time.sleep(0.7/fre)
             # print(i)  
         except KeyboardInterrupt:
             # 捕获Ctrl+C信号来终止程序
             print("程序终止")
     print("pulse is over ")
+    GPIO.output(out_io, GPIO.LOW)
     global acquisition_flag
     acquisition_flag = 1
     GPIO.cleanup()
@@ -220,8 +221,8 @@ def main():
     ensure_dir(path) 
     prophesee_cam = event(0,path)
     prophesee_cam.config_prophesee()
-    while(1):
-    	print("set")
+   # while(1):
+    #	print("set")
     # Run example on each camera
     global acquisition_flag
     acquisition_flag = 0
