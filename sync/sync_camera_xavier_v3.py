@@ -162,11 +162,7 @@ class event():
         print(f"height = {height}, width = {width}")
         global acquisition_flag
         print("flag is ",acquisition_flag)
-        num = 0 
         for evs in mv_iterator:
-            num += 1
-            if num >10:
-                break
             if acquisition_flag == 1:
                 break
         return 0
