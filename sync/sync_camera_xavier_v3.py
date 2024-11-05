@@ -958,14 +958,18 @@ def main():
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
             # # pwm generate
-            trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
+            # trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
             #多线程启动
             prophesee_thread.start()
             flir_thread.start()
-            trigger_thread.start()
+            # trigger_thread.start()
+            # 这里需要启动一个函数发送给树莓派 告诉树莓派需要产生脉冲，并指定好脉冲数量和频率
             
-            # result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
-            trigger_thread.join()
+            
+            
+            
+            #函数执行完毕后，等待线程结束，树莓派执行脉冲的程序在树莓派上有
+            # trigger_thread.join()
             flir_thread.join()
             prophesee_thread.join()
             # 将存放都放在了 acquire 函数里
