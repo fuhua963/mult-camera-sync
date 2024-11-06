@@ -1,7 +1,7 @@
 from ctypes import *
 import numpy as np
 
-dll = CDLL("./lib/libIRSDKlib_x86.so")
+dll = CDLL("./lib/IRSDKlib_x64.dll")
 
 WIDTH = 640
 HEIGHT = 512
