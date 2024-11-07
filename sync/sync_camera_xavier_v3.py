@@ -59,6 +59,18 @@ class AviType:
     H264 = 2
 chosenAviType = AviType.UNCOMPRESSED  # change me!
 
+
+##  define
+
+
+
+
+
+## 
+
+
+
+
 def trigger_star(out_io,fre,duty_cycle):
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
@@ -958,13 +970,17 @@ def main():
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
             # # pwm generate
-            trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
+            # trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
             #多线程启动
             prophesee_thread.start()
             flir_thread.start()
-            trigger_thread.start()
+            # trigger_thread.start()
+            ##-------------  发送指令  --------—--------##
 
-            trigger_thread.join()
+
+
+            ##-----------------------------------------##
+            # trigger_thread.join()
             flir_thread.join()
             prophesee_thread.join()
             # 将存放都放在了 acquire 函数里
