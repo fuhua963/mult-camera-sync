@@ -56,7 +56,7 @@ class Form_Camera(QWidget, Ui_Form_Camera):
         # sdk_gray2rgb(byref(self.gray), byref(self.rgb), self.imgsize[1], self.imgsize[0], 0, 1)
         sdk_frame2gray(byref(self.sframe), byref(self.gray))
         sdk_gray2rgb(byref(self.gray), byref(self.rgb), self.imgsize[1], self.imgsize[0], 0, 1)
-        print("Gray data:", self.gray[:10])  # 打印灰度数据的前10个值
+        print("Gray data:", self.gray[:10])  # 打印灰度数据的前1
         print("RGB data:", self.rgb[:10])    # 打印RGB数据的前10个值
         self.mutex.release()
         self.label.show_img(self.rgb, frame, self.imgsize)
@@ -72,7 +72,8 @@ class Form_Camera(QWidget, Ui_Form_Camera):
         self.monitorconnect = True
         index = self.comboBox_ip.currentIndex()
         if index >= 0:
-            sdk_creat_connect(self.handle, self.iplist[index], glbCallBackFun[self.handle], self)
+            sdk_creat_connect(self.handle, self.iplist[index], glbCallBackFun[self.handle], self)  # 连接相机 并设置回调函数glbCallBackFun
+            print(f"now connect is success")
         else:  # 手动输入
             str_ip = self.comboBox_ip.currentText()
             str_iplist = str_ip.split('.')
@@ -104,7 +105,11 @@ class Form_Camera(QWidget, Ui_Form_Camera):
     def monitor(self):
         if self.monitorconnect:
             self.isConnect = self.form_isConnect()
-            print(self.isConnect)
+            print(f"connect status: {self.isConnect}")
+            global count_num
+            print(f"conun_num: {count_num}")
+
+
             if not self.isConnect:
                 sdk_connect(self.handle)
 

@@ -100,6 +100,7 @@ def sdk_creat_connect(handle, ipaddr, callbackfun, this):
     data = py_object(this)
     dll.IRSDK_Create(handle, ipaddr, callbackfun, None, None, data)
     dll.IRSDK_Connect(handle)
+    print("the connect is success")
 
 
 def sdk_stop(handle):
