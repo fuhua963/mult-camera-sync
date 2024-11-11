@@ -29,7 +29,7 @@ NUM_IMAGES = 20+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
-FRAMERATE = int(10) # fps
+FRAMERATE = int(2) # fps
 EXPOSURE_TIME = 50000 # us
 Auto_Exposure = False   #自动曝光设置
 EX_Trigger = False      #触发方式设置
