@@ -4,13 +4,15 @@ from form_camera import *
 form_cam = []  # 全局变量,
 glbFrame = []
 
+
+
 for i in range(0, MAX_CAMERA):
     glbFrame.append(Frame())
 
 sizeFrame = 32+WIDTH*HEIGHT*2
 
 
-def FrameProc1(frame, this):
+def FrameProc1(frame, this): # 回被调用调函数1 这个没有
     bytebuf = string_at(frame, sizeFrame)
     memmove(addressof(glbFrame[0]), bytebuf, sizeFrame)
     if len(form_cam) > 0:
@@ -28,8 +30,8 @@ def FrameProc2(frame, this):
 
 glbCallBackFun = []
 VIDEOCALLBACKFUNC = CFUNCTYPE(c_int, c_void_p, c_void_p)
-
 for i in range(0, MAX_CAMERA):
+    print(f"the camera index: {i}")
     if i == 0:
         callbackfun1 = VIDEOCALLBACKFUNC(FrameProc1)
         glbCallBackFun.append(callbackfun1)

@@ -1,5 +1,6 @@
 import PySpin
 import sys
+import serial
 import time
 import os
 import Jetson.GPIO as GPIO
@@ -23,13 +24,13 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 
 # 全局变量设置
-NUM_IMAGES = 20+1  # number of images to save
+NUM_IMAGES = 150+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
 FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
-Auto_Exposure = False   #自动曝光设置
+Auto_Exposure = True   #自动曝光设置
 EX_Trigger = True      #触发方式设置
 Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
@@ -58,6 +59,16 @@ class AviType:
     MJPG = 1
     H264 = 2
 chosenAviType = AviType.UNCOMPRESSED  # change me!
+
+
+## 指令发送函数
+ser = serial.Serial('/dev/ttyTHS1', 115200, timeout=1)  # 根据实际情况修改串口名和波特率  
+def send_pulse_command(num_pulses, frequency):  
+    # 构造指令（这里使用简单的字符串格式，可以根据需要定义更复杂的协议）  
+    command = f"PULSE,{num_pulses},{frequency}\n"  
+    ser.write(command.encode())  
+    print(f"Sent command: {command.strip()}")  
+
 
 def trigger_star(out_io,fre,duty_cycle):
     GPIO.setmode(GPIO.BOARD)
@@ -165,13 +176,15 @@ class event():
         for evs in mv_iterator:
             if acquisition_flag == 1:
                 break
-        return 0
-    def stop_recording(self):
         self.ieventstream.stop_log_raw_data()
         print("event stop recording")
-        del self.device
-
         return 0
+    # def stop_recording(self):
+    #     self.ieventstream.stop_log_raw_data()
+    #     print("event stop recording")
+    #     del self.device
+
+    #     return 0
     
 
 def ensure_dir(s):
@@ -958,19 +971,26 @@ def main():
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
             # # pwm generate
-            trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
+            # trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
             #多线程启动
             prophesee_thread.start()
             flir_thread.start()
-            trigger_thread.start()
+            # trigger_thread.start()
+            ##-------------  发送指令  --------—--------##
 
-            trigger_thread.join()
-            flir_thread.join()
+            # 示例：发送产生NUM_IMAGES个频率为FRAMERATE Hz脉冲的指令  
+            send_pulse_command(NUM_IMAGES,FRAMERATE)
+            # 关闭串口  
+            ser.close()
+
+            ##-----------------------------------------##
+            # trigger_thread.join()
             prophesee_thread.join()
+            flir_thread.join()
             # 将存放都放在了 acquire 函数里
             try : 
                 acquisition_flag = 0 # 结束了采集
-                prophesee_cam.stop_recording()
+                # prophesee_cam.stop_recording()
                 prophesee_cam.prophesee_tirgger_found()
             except :
                 print("save is wrong")
