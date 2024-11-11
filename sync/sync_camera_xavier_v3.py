@@ -85,12 +85,12 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 ## 指令发送函数
-ser = serial.Serial('/dev/ttyTHS1', 115200, timeout=1)  # 根据实际情况修改串口名和波特率  
-def send_pulse_command(num_pulses, frequency):  
-    # 构造指令（这里使用简单的字符串格式，可以根据需要定义更复杂的协议）  
-    command = f"PULSE,{num_pulses},{frequency}\n"  
-    ser.write(command.encode())  
-    print(f"Sent command: {command.strip()}")  
+# ser = serial.Serial('/dev/ttyTHS1', 115200, timeout=1)  # 根据实际情况修改串口名和波特率  
+# def send_pulse_command(num_pulses, frequency):  
+#     # 构造指令（这里使用简单的字符串格式，可以根据需要定义更复杂的协议）  
+#     command = f"PULSE,{num_pulses},{frequency}\n"  
+#     ser.write(command.encode())  
+#     print(f"Sent command: {command.strip()}")  
 
 
 def trigger_star(out_io,fre,duty_cycle):
@@ -968,7 +968,8 @@ def main():
     
 
     ## config prophesee camera
-    path = os.path.abspath(os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.abspath(os.path.join(current_dir, time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
     ensure_dir(path) 
     prophesee_cam = event(0,path)
     prophesee_cam.config_prophesee()
@@ -1004,25 +1005,25 @@ def main():
             cam.BeginAcquisition()
             # 多线程配置 
             print("线程开始")
-            prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
+            # prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
             # # pwm generate
             # trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
             #多线程启动
-            prophesee_thread.start()
+            # prophesee_thread.start()
             flir_thread.start()
             # trigger_thread.start()
             ##-------------  发送指令  --------—--------##
 
             # 示例：发送产生NUM_IMAGES个频率为FRAMERATE Hz脉冲的指令  
-            send_pulse_command(NUM_IMAGES,FRAMERATE)
-            # 关闭串口  
-            ser.close()
+            # send_pulse_command(NUM_IMAGES,FRAMERATE)
+            # # 关闭串口  
+            # ser.close()
 
             ##-----------------------------------------##
             # trigger_thread.join()
-            prophesee_thread.join()
+            # prophesee_thread.join()
             flir_thread.join()
             # 将存放都放在了 acquire 函数里
             try : 
