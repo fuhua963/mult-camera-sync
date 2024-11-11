@@ -10,6 +10,7 @@ import tkinter.font as tkf
 from threading import Thread
 import numpy as np
 import queue
+import signal
 import cv2 as cv
 sys.path.append("/home/nvidia/openeb/sdk/modules/core/python/pypkg")
 sys.path.append("/home/nvidia/openeb/build/py3")
@@ -59,6 +60,30 @@ class AviType:
     MJPG = 1
     H264 = 2
 chosenAviType = AviType.UNCOMPRESSED  # change me!
+
+global cam_list, system
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C! Cleaning up...')
+    # 停止所有相机的采集
+    for cam in cam_list:
+        try:
+            cam.EndAcquisition()
+            cam.DeInit()
+        except:
+            pass
+    # 清空相机列表
+    cam_list.Clear()
+    # 释放系统实例
+    system.ReleaseInstance()
+    # if prophesee_thread.is_alive():
+    #     prophesee_thread.join()
+    # if flir_thread.is_alive():
+    #     flir_thread.join()
+    sys.exit(0)
+
+# 注册信号处理程序
+signal.signal(signal.SIGINT, signal_handler)
 
 
 ## 指令发送函数
@@ -256,20 +281,6 @@ def config_camera(nodemap):
             return False
         node_offset_y.SetValue(OFFSET_Y)
 
- 
-
-        """ -------------------- 设置帧率 -------------------- """
-        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
-        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
-            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
-            return False
-        node_framerate_enable.SetValue(True)
-            
-        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
-        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
-            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
-            return False
-        node_acquisition_framerate.SetValue(FRAMERATE)
 
         """ -------------------- 设置曝光时间 -------------------- """
         if Auto_Exposure:
@@ -323,7 +334,19 @@ def config_camera(nodemap):
             # Set exposure time to 10000 us
             node_exposure_time.SetValue(EXPOSURE_TIME)
 
-        
+        """ -------------------- 设置帧率 -------------------- """
+        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
+        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
+            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
+            return False
+        node_framerate_enable.SetValue(True)
+            
+        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
+        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
+            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
+            return False
+        node_acquisition_framerate.SetValue(FRAMERATE)
+   
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
         node_gain_auto = PySpin.CEnumerationPtr(nodemap.GetNode('GainAuto'))
@@ -907,7 +930,7 @@ def main():
 
     test_file.close()
     os.remove(test_file.name)
-
+    global cam_list, system
     result = True
     # Retrieve singleton reference to system object
     system = PySpin.System.GetInstance()
@@ -937,7 +960,7 @@ def main():
     
 
     ## config prophesee camera
-    path = os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
+    path = os.path.abspath(os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
     ensure_dir(path) 
     prophesee_cam = event(0,path)
     prophesee_cam.config_prophesee()
@@ -961,6 +984,9 @@ def main():
 
             # Configure camera
             if config_camera(nodemap) is False:
+                cam.DeInit()
+                cam_list.Clear()
+                system.ReleaseInstance() 
                 return False
             # acquire images  flag 
             global acquisition_flag

@@ -10,17 +10,44 @@ import threading
 import cv2
 import numpy as np
 from os import path
+import signal
 
 #  flir camera set
 NUM_IMAGES = 50  # number of images to save
 
 FRAMERATE = 15
-EXPOSURE_TIME = 10000 # us
+FRAMERATE = int(10) # fps
+EXPOSURE_TIME = 50000 # us
+Auto_Exposure = False   #自动曝光设置
+EX_Trigger = False      #触发方式设置
+expose_time = EXPOSURE_TIME #us
+frequency =int(FRAMERATE) # 设置频率
+
 
 OFFSET_X = 0#224
 OFFSET_Y = 0#524
 WIDTH = 2000
 HEIGHT = 1000
+
+global cam_list, system
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C! Cleaning up...')
+    # 停止所有相机的采集
+    for cam in cam_list:
+        try:
+            cam.EndAcquisition()
+            cam.DeInit()
+        except:
+            pass
+    # 清空相机列表
+    cam_list.Clear()
+    # 释放系统实例
+    system.ReleaseInstance()
+    sys.exit(0)
+
+# 注册信号处理程序
+signal.signal(signal.SIGINT, signal_handler)
 
 def ensure_dir(s):
     if not os.path.exists(s):
@@ -72,7 +99,7 @@ def config_camera(nodemap):
             print('\nUnable to set Width (integer retrieval). Aborting...\n')
             return False
         node_width.SetValue(WIDTH)
-        
+
         node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
         if not PySpin.IsAvailable(node_height) or not PySpin.IsWritable(node_height):
             print('\nUnable to set Height (integer retrieval). Aborting...\n')
@@ -90,38 +117,58 @@ def config_camera(nodemap):
             print('\nUnable to set Offset Y (integer retrieval). Aborting...\n')
             return False
         node_offset_y.SetValue(OFFSET_Y)
-        
+
         """ -------------------- 设置曝光时间 -------------------- """
-        # Turn off auto exposure
-        node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
-        if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
-            print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
-            return False
-        entry_exposure_auto_off = node_exposure_auto.GetEntryByName('Off')
-        if not PySpin.IsReadable(entry_exposure_auto_off):
-            print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
-            return False
-        exposure_auto_off = entry_exposure_auto_off.GetValue()
-        node_exposure_auto.SetIntValue(exposure_auto_off)
-       # timed mode 
-        node_exposure_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
-        if not PySpin.IsReadable(node_exposure_mode) or not PySpin.IsWritable(node_exposure_mode):
-            print('\nUnable to set Exposure Mode (enumeration retrieval). Aborting...\n')
-            return False
-        # node_exposure_mode.SetIntValue(PySpin.ExposureMode_Timed)
-        entry_gain_auto_off = node_exposure_mode.GetEntryByName('Timed')
-        if not PySpin.IsReadable(entry_gain_auto_off):
-            print('\nUnable to set Gain Auto (entry retrieval). Aborting...\n')
-            return False
-        gain_auto_off = entry_gain_auto_off.GetValue()
-        node_exposure_mode.SetIntValue(gain_auto_off)
-        # Set exposure time
-        node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
-        if not PySpin.IsReadable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
-            print('\nUnable to set Exposure Time (float retrieval). Aborting...\n')
-            return False
-        # Set exposure time to 10000 us
-        node_exposure_time.SetValue(EXPOSURE_TIME)
+        if Auto_Exposure:
+            # set AutoExposureExposureTimeUpperLimit is 500000
+            node_exposure_time_upper_limit = PySpin.CFloatPtr(nodemap.GetNode('AutoExposureExposureTimeUpperLimit'))
+            if not PySpin.IsReadable(node_exposure_time_upper_limit) or not PySpin.IsWritable(node_exposure_time_upper_limit):
+                print('\nUnable to set Exposure Time Upper Limit (float retrieval). Aborting...\n')
+                return False
+            node_exposure_time_upper_limit.SetValue(5000000)
+            
+            # Turn on auto exposure
+            node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
+            if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
+                print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
+                return False
+            entry_exposure_auto_on = node_exposure_auto.GetEntryByName('Continuous')
+            if not PySpin.IsReadable(entry_exposure_auto_on):
+                print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
+                return False
+            exposure_auto_on = entry_exposure_auto_on.GetValue()
+            node_exposure_auto.SetIntValue(exposure_auto_on)
+        else:
+            # Turn off auto exposure
+            node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
+            if not PySpin.IsReadable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
+                print('\nUnable to set Exposure Auto (enumeration retrieval). Aborting...\n')
+                return False
+            entry_exposure_auto_off = node_exposure_auto.GetEntryByName('Off')
+            if not PySpin.IsReadable(entry_exposure_auto_off):
+                print('\nUnable to set Exposure Auto (entry retrieval). Aborting...\n')
+                return False
+            exposure_auto_off = entry_exposure_auto_off.GetValue()
+            node_exposure_auto.SetIntValue(exposure_auto_off)
+            # timed mode 
+            node_exposure_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
+            if not PySpin.IsReadable(node_exposure_mode) or not PySpin.IsWritable(node_exposure_mode):
+                print('\nUnable to set Exposure Mode (enumeration retrieval). Aborting...\n')
+                return False
+            # node_exposure_mode.SetIntValue(PySpin.ExposureMode_Timed)
+            entry_gain_auto_off = node_exposure_mode.GetEntryByName('Timed')
+            if not PySpin.IsReadable(entry_gain_auto_off):
+                print('\nUnable to set Gain Auto (entry retrieval). Aborting...\n')
+                return False
+            gain_auto_off = entry_gain_auto_off.GetValue()
+            node_exposure_mode.SetIntValue(gain_auto_off)
+            # Set exposure time
+            node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
+            if not PySpin.IsReadable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
+                print('\nUnable to set Exposure Time (float retrieval). Aborting...\n')
+                return False
+            # Set exposure time to 10000 us
+            node_exposure_time.SetValue(EXPOSURE_TIME)
 
 
         """ -------------------- 设置帧率 -------------------- """
@@ -136,8 +183,6 @@ def config_camera(nodemap):
             print('\nUnable to set Framerate (float retrieval). Aborting...\n')
             return False
         node_acquisition_framerate.SetValue(FRAMERATE)
-
-
         
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
@@ -170,55 +215,74 @@ def config_camera(nodemap):
         if not PySpin.IsReadable(node_device_link_throughput_limit) or not PySpin.IsWritable(node_device_link_throughput_limit):
             print('\nUnable to set Device Link Throughput Limit (integer retrieval). Aborting...\n')
             return False
-        node_device_link_throughput_limit.SetValue(500000000)
+        node_device_link_throughput_limit.SetValue(43000000)
         
         """ -------------------- 设置信号输入 -------------------- """
-        node_trigger_selector = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
-        if not PySpin.IsAvailable(node_trigger_selector) or not PySpin.IsWritable(node_trigger_selector):
-            print('\nUnable to set Trigger Selector (enumeration retrieval). Aborting...\n')
-            return False
-        entry_trigger_selector = node_trigger_selector.GetEntryByName('FrameStart')
-        if not PySpin.IsAvailable(entry_trigger_selector) or not PySpin.IsReadable(entry_trigger_selector):
-            print('\nUnable to enter Trigger Selector FrameStart. Aborting...\n')
-            return False
-        trigger_selector_framestart = entry_trigger_selector.GetValue()
-        node_trigger_selector.SetIntValue(trigger_selector_framestart)
-        
+        if EX_Trigger:
+            print("now is ex trigger \n")
+            node_trigger_selector = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
+            if not PySpin.IsAvailable(node_trigger_selector) or not PySpin.IsWritable(node_trigger_selector):
+                print('\nUnable to set Trigger Selector (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_selector = node_trigger_selector.GetEntryByName('FrameStart')
+            if not PySpin.IsAvailable(entry_trigger_selector) or not PySpin.IsReadable(entry_trigger_selector):
+                print('\nUnable to enter Trigger Selector FrameStart. Aborting...\n')
+                return False
+            trigger_selector_framestart = entry_trigger_selector.GetValue()
+            node_trigger_selector.SetIntValue(trigger_selector_framestart)
+            
 
-        node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
-        if not PySpin.IsAvailable(node_trigger_source) or not PySpin.IsWritable(node_trigger_source):
-            print('\nUnable to set Trigger Source (enumeration retrieval). Aborting...\n')
-            return False
-        entry_trigger_source_soft = node_trigger_source.GetEntryByName('Software')
-        if not PySpin.IsAvailable(entry_trigger_source_soft) or not PySpin.IsReadable(entry_trigger_source_soft):
-            print('\nUnable to enter Trigger Source Line3. Aborting...\n')
-            return False
-        trigger_source_soft = entry_trigger_source_soft.GetValue()
-        node_trigger_source.SetIntValue(trigger_source_soft)
+            node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+            if not PySpin.IsAvailable(node_trigger_source) or not PySpin.IsWritable(node_trigger_source):
+                print('\nUnable to set Trigger Source (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_source_line3 = node_trigger_source.GetEntryByName('Line3')
+            if not PySpin.IsAvailable(entry_trigger_source_line3) or not PySpin.IsReadable(entry_trigger_source_line3):
+                print('\nUnable to enter Trigger Source Line3. Aborting...\n')
+                return False
+            trigger_source_line3 = entry_trigger_source_line3.GetValue()
+            node_trigger_source.SetIntValue(trigger_source_line3)
 
-#
-        node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
-        if not PySpin.IsAvailable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
-            print('\nUnable to set Trigger Mode (enumeration retrieval). Aborting...\n')
-            return False
-        node_trigger_mode.SetIntValue(PySpin.TriggerMode_Off)
-        
-        # node_trigger_activation = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
-        # if not PySpin.IsAvailable(node_trigger_activation) or not PySpin.IsWritable(node_trigger_activation):
-        #     print('\nUnable to set Trigger Activation (enumeration retrieval). Aborting...\n')
-        #     return False
-        # entry_trigger_activation_risingedge = node_trigger_activation.GetEntryByName('RisingEdge')
-        # if not PySpin.IsAvailable(entry_trigger_activation_risingedge) or not PySpin.IsReadable(entry_trigger_activation_risingedge):
-        #     print('\nUnable to enter Trigger Activation Rising Edge. Aborting...\n')
-        #     return False
-        # trigger_activation_risingedge = entry_trigger_activation_risingedge.GetValue()
-        # node_trigger_activation.SetIntValue(trigger_activation_risingedge)
+            node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
+            if not PySpin.IsAvailable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
+                print('\nUnable to set Trigger Mode (enumeration retrieval). Aborting...\n')
+                return False
+            node_trigger_mode.SetIntValue(PySpin.TriggerMode_On)
+            
+            node_trigger_activation = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
+            if not PySpin.IsAvailable(node_trigger_activation) or not PySpin.IsWritable(node_trigger_activation):
+                print('\nUnable to set Trigger Activation (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_activation_risingedge = node_trigger_activation.GetEntryByName('RisingEdge')
+            if not PySpin.IsAvailable(entry_trigger_activation_risingedge) or not PySpin.IsReadable(entry_trigger_activation_risingedge):
+                print('\nUnable to enter Trigger Activation Rising Edge. Aborting...\n')
+                return False
+            trigger_activation_risingedge = entry_trigger_activation_risingedge.GetValue()
+            node_trigger_activation.SetIntValue(trigger_activation_risingedge)
 
-        # node_trigger_overlap = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
-        # if not PySpin.IsAvailable(node_trigger_overlap) or not PySpin.IsWritable(node_trigger_overlap):
-        #     print('\nUnable to set Trigger Overlap (enumeration retrieval). Aborting...\n')
-        #     return False
-        # node_trigger_overlap.SetIntValue(PySpin.TriggerOverlap_ReadOut)
+            node_trigger_overlap = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
+            if not PySpin.IsAvailable(node_trigger_overlap) or not PySpin.IsWritable(node_trigger_overlap):
+                print('\nUnable to set Trigger Overlap (enumeration retrieval). Aborting...\n')
+                return False
+            node_trigger_overlap.SetIntValue(PySpin.TriggerOverlap_ReadOut)
+        else:
+            node_trigger_selector = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
+            if not PySpin.IsAvailable(node_trigger_selector) or not PySpin.IsWritable(node_trigger_selector):
+                print('\nUnable to set Trigger Selector (enumeration retrieval). Aborting...\n')
+                return False
+            entry_trigger_selector = node_trigger_selector.GetEntryByName('FrameStart')
+            if not PySpin.IsAvailable(entry_trigger_selector) or not PySpin.IsReadable(entry_trigger_selector):
+                print('\nUnable to enter Trigger Selector FrameStart. Aborting...\n')
+                return False
+            trigger_selector_framestart = entry_trigger_selector.GetValue()
+            node_trigger_selector.SetIntValue(trigger_selector_framestart)
+
+            node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
+            if not PySpin.IsAvailable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
+                print('\nUnable to set Trigger Mode (enumeration retrieval). Aborting...\n')
+                return False
+            node_trigger_mode.SetIntValue(PySpin.TriggerMode_Off)
+
 
         """-----------------------设置捕获方式-------------------"""
         # Set acquisition mode to continuous
@@ -227,9 +291,6 @@ def config_camera(nodemap):
             print('\nUnable to set acquisition mode to multi-frame (enum retrieval). Aborting...\n')
             return False
         node_acquisition_mode.SetIntValue(PySpin.AcquisitionMode_Continuous)
-
-
-
 
 
         """ -------------------- 设置数据块 -------------------- """
@@ -599,8 +660,7 @@ def main():
     os.remove(test_file.name)
 
     result = True
-
-
+    global cam_list, system
     # Retrieve singleton reference to system object
     system = PySpin.System.GetInstance()
 
@@ -627,7 +687,12 @@ def main():
         input('Done! Press Enter to exit...')
         return False
 
-    path = os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
+    
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.abspath(os.path.join(current_dir, time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
+
+    print('Images will be saved at %s' % path)
     ensure_dir(path) 
 
 
@@ -651,6 +716,9 @@ def main():
 
             # Configure camera
             if config_camera(nodemap) is False:
+                cam.DeInit()
+                cam_list.Clear()
+                system.ReleaseInstance() 
                 return False
             # Acquire images
             result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
@@ -687,12 +755,9 @@ def main():
     # Release system instance
     system.ReleaseInstance()
 
-    input('Done! Press Enter to exit...')
+    # input('Done! Press Enter to exit...')
     return result
 
 
 if __name__ == '__main__':
-    if main():
-        sys.exit(0)
-    else:
-        sys.exit(1)
+    main()

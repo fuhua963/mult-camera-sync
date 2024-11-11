@@ -256,21 +256,6 @@ def config_camera(nodemap):
             return False
         node_offset_y.SetValue(OFFSET_Y)
 
- 
-
-        """ -------------------- 设置帧率 -------------------- """
-        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
-        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
-            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
-            return False
-        node_framerate_enable.SetValue(True)
-            
-        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
-        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
-            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
-            return False
-        node_acquisition_framerate.SetValue(FRAMERATE)
-
         """ -------------------- 设置曝光时间 -------------------- """
         if Auto_Exposure:
             # set AutoExposureExposureTimeUpperLimit is 500000
@@ -323,6 +308,19 @@ def config_camera(nodemap):
             # Set exposure time to 10000 us
             node_exposure_time.SetValue(EXPOSURE_TIME)
 
+
+        """ -------------------- 设置帧率 -------------------- """
+        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
+        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
+            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
+            return False
+        node_framerate_enable.SetValue(True)
+            
+        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
+        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
+            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
+            return False
+        node_acquisition_framerate.SetValue(FRAMERATE)
         
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
