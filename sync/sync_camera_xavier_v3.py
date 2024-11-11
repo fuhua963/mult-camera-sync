@@ -336,19 +336,6 @@ def config_camera(nodemap):
             node_exposure_time.SetValue(EXPOSURE_TIME)
         # 显示曝光时间
         print(f"exposure time is {node_exposure_time.GetValue()} us")
-
-        """ -------------------- 设置帧率 -------------------- """
-        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
-        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
-            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
-            return False
-        node_framerate_enable.SetValue(True)
-            
-        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
-        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
-            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
-            return False
-        node_acquisition_framerate.SetValue(FRAMERATE)
    
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
@@ -459,6 +446,19 @@ def config_camera(nodemap):
         node_acquisition_mode.SetIntValue(PySpin.AcquisitionMode_Continuous)
 
 
+        """ -------------------- 设置帧率 -------------------- """
+        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
+        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
+            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
+            return False
+        node_framerate_enable.SetValue(True)
+            
+        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
+        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
+            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
+            return False
+        node_acquisition_framerate.SetValue(FRAMERATE)
+        
         """ -------------------- 设置数据块 -------------------- """
         chunk_mode_active = PySpin.CBooleanPtr(nodemap.GetNode('ChunkModeActive'))
         if not PySpin.IsWritable(chunk_mode_active):
