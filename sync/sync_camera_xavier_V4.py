@@ -974,20 +974,13 @@ def main():
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
             # # pwm generate
-            # trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
+            trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
             #多线程启动
             prophesee_thread.start()
             flir_thread.start()
-            # trigger_thread.start()
-            ##-------------  发送指令  --------—--------##
+            trigger_thread.start()
 
-            # 示例：发送产生NUM_IMAGES个频率为FRAMERATE Hz脉冲的指令  
-            send_pulse_command(NUM_IMAGES,FRAMERATE)
-            # 关闭串口  
-            ser.close()
-
-            ##-----------------------------------------##
-            # trigger_thread.join()
+            trigger_thread.join()
             prophesee_thread.join()
             flir_thread.join()
             # 将存放都放在了 acquire 函数里

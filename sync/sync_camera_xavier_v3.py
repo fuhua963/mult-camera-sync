@@ -24,13 +24,13 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 
 # 全局变量设置
-NUM_IMAGES = 150+1  # number of images to save
+NUM_IMAGES = 20+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
-FRAMERATE = int(15) # fps
+FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
-Auto_Exposure = True   #自动曝光设置
+Auto_Exposure = False   #自动曝光设置
 EX_Trigger = True      #触发方式设置
 Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
@@ -955,13 +955,16 @@ def main():
 
             # Initialize camera
             cam.Init()
+            print("init")
             # Retrieve GenICam nodemap
             nodemap = cam.GetNodeMap()
+
             # Configure camera
             if config_camera(nodemap) is False:
                 return False
             # acquire images  flag 
             global acquisition_flag
+
             acquisition_flag = 0
             #  Begin acquiring images
             cam.BeginAcquisition()
