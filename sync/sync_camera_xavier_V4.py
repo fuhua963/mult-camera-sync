@@ -10,6 +10,7 @@ import tkinter.font as tkf
 from threading import Thread
 import numpy as np
 import queue
+import signal
 import cv2 as cv
 sys.path.append("/home/nvidia/openeb/sdk/modules/core/python/pypkg")
 sys.path.append("/home/nvidia/openeb/build/py3")
@@ -31,7 +32,7 @@ NUM_IMAGES = 20+1  # number of images to save
 FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
 Auto_Exposure = False   #自动曝光设置
-EX_Trigger = True      #触发方式设置
+EX_Trigger = False      #触发方式设置
 Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
@@ -59,6 +60,28 @@ class AviType:
     MJPG = 1
     H264 = 2
 chosenAviType = AviType.UNCOMPRESSED  # change me!
+
+global cam_list, system 
+running = True
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C! Cleaning up...')
+    global running
+    running = False
+    # 停止所有相机的采集
+    for cam in cam_list:
+        try:
+            cam.EndAcquisition()
+            cam.DeInit()
+        except:
+            pass
+    # 清空相机列表
+    cam_list.Clear()
+    # 释放系统实例
+    system.ReleaseInstance()
+    sys.exit(0)
+
+# 注册信号处理程序
+signal.signal(signal.SIGINT, signal_handler)
 
 
 ## 指令发送函数
@@ -172,10 +195,13 @@ class event():
         height, width = mv_iterator.get_size()  # Camera Geometry
         print(f"height = {height}, width = {width}")
         global acquisition_flag
+        global running
         print("flag is ",acquisition_flag)
         for evs in mv_iterator:
-            if acquisition_flag == 1:
+            if acquisition_flag == 1 or not running:
                 break
+            pass
+
         self.ieventstream.stop_log_raw_data()
         print("event stop recording")
         return 0
@@ -256,6 +282,7 @@ def config_camera(nodemap):
             return False
         node_offset_y.SetValue(OFFSET_Y)
 
+
         """ -------------------- 设置曝光时间 -------------------- """
         if Auto_Exposure:
             # set AutoExposureExposureTimeUpperLimit is 500000
@@ -308,7 +335,6 @@ def config_camera(nodemap):
             # Set exposure time to 10000 us
             node_exposure_time.SetValue(EXPOSURE_TIME)
 
-
         """ -------------------- 设置帧率 -------------------- """
         node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
         if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
@@ -321,7 +347,7 @@ def config_camera(nodemap):
             print('\nUnable to set Framerate (float retrieval). Aborting...\n')
             return False
         node_acquisition_framerate.SetValue(FRAMERATE)
-        
+   
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
         node_gain_auto = PySpin.CEnumerationPtr(nodemap.GetNode('GainAuto'))
@@ -665,13 +691,20 @@ def acquire_images(cam, nodemap,path,mode):
         images = list()
         timestamps = list()
         exposure_times = list()
+        global acquisition_flag
+        global running
+
         for i in range(NUM_IMAGES):
             try:
                 # Retrieve next received image and ensure image completion
                 # By default, GetNextImage will block indefinitely until an image arrives.
                 # In this example, the timeout value is set to [exposure time + 1000]ms to ensure that an image has enough time to arrive under normal conditions
                 image_result = cam.GetNextImage()
-                
+                if not running:
+                    image_result.Release()
+                    break
+                    
+
                 if image_result.IsIncomplete():
                     print('Image incomplete with image status %d...' % image_result.GetImageStatus())
                     # we need to release the image
@@ -905,7 +938,7 @@ def main():
 
     test_file.close()
     os.remove(test_file.name)
-
+    global cam_list, system
     result = True
     # Retrieve singleton reference to system object
     system = PySpin.System.GetInstance()
@@ -935,7 +968,7 @@ def main():
     
 
     ## config prophesee camera
-    path = os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
+    path = os.path.abspath(os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
     ensure_dir(path) 
     prophesee_cam = event(0,path)
     prophesee_cam.config_prophesee()
@@ -959,6 +992,9 @@ def main():
 
             # Configure camera
             if config_camera(nodemap) is False:
+                cam.DeInit()
+                cam_list.Clear()
+                system.ReleaseInstance() 
                 return False
             # acquire images  flag 
             global acquisition_flag
@@ -972,19 +1008,25 @@ def main():
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
             # # pwm generate
-            trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
+            # trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
             #多线程启动
             prophesee_thread.start()
             flir_thread.start()
-            trigger_thread.start()
+            # trigger_thread.start()
+            ##-------------  发送指令  --------—--------##
 
-            trigger_thread.join()
+            # 示例：发送产生NUM_IMAGES个频率为FRAMERATE Hz脉冲的指令  
+            send_pulse_command(NUM_IMAGES,FRAMERATE)
+            # 关闭串口  
+            ser.close()
+
+            ##-----------------------------------------##
+            # trigger_thread.join()
             prophesee_thread.join()
             flir_thread.join()
             # 将存放都放在了 acquire 函数里
             try : 
                 acquisition_flag = 0 # 结束了采集
-                # prophesee_cam.stop_recording()
                 prophesee_cam.prophesee_tirgger_found()
             except :
                 print("save is wrong")
