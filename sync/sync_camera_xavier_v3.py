@@ -61,10 +61,12 @@ class AviType:
     H264 = 2
 chosenAviType = AviType.UNCOMPRESSED  # change me!
 
-global cam_list, system
-
+global cam_list, system 
+running = True
 def signal_handler(sig, frame):
     print('You pressed Ctrl+C! Cleaning up...')
+    global running
+    running = False
     # 停止所有相机的采集
     for cam in cam_list:
         try:
@@ -76,10 +78,6 @@ def signal_handler(sig, frame):
     cam_list.Clear()
     # 释放系统实例
     system.ReleaseInstance()
-    # if prophesee_thread.is_alive():
-    #     prophesee_thread.join()
-    # if flir_thread.is_alive():
-    #     flir_thread.join()
     sys.exit(0)
 
 # 注册信号处理程序
@@ -197,10 +195,13 @@ class event():
         height, width = mv_iterator.get_size()  # Camera Geometry
         print(f"height = {height}, width = {width}")
         global acquisition_flag
+        global running
         print("flag is ",acquisition_flag)
         for evs in mv_iterator:
-            if acquisition_flag == 1:
+            if acquisition_flag == 1 or not running:
                 break
+            pass
+
         self.ieventstream.stop_log_raw_data()
         print("event stop recording")
         return 0
@@ -690,13 +691,20 @@ def acquire_images(cam, nodemap,path,mode):
         images = list()
         timestamps = list()
         exposure_times = list()
+        global acquisition_flag
+        global running
+
         for i in range(NUM_IMAGES):
             try:
                 # Retrieve next received image and ensure image completion
                 # By default, GetNextImage will block indefinitely until an image arrives.
                 # In this example, the timeout value is set to [exposure time + 1000]ms to ensure that an image has enough time to arrive under normal conditions
                 image_result = cam.GetNextImage()
-                
+                if not running:
+                    image_result.Release()
+                    break
+                    
+
                 if image_result.IsIncomplete():
                     print('Image incomplete with image status %d...' % image_result.GetImageStatus())
                     # we need to release the image
@@ -1019,7 +1027,6 @@ def main():
             # 将存放都放在了 acquire 函数里
             try : 
                 acquisition_flag = 0 # 结束了采集
-                # prophesee_cam.stop_recording()
                 prophesee_cam.prophesee_tirgger_found()
             except :
                 print("save is wrong")
