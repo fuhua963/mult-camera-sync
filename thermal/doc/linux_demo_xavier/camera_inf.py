@@ -138,7 +138,7 @@ def sdk_tempseg_sel(handle, i):
 
 # 转灰度
 def sdk_frame2gray(frame, gray):
-    dll.IRSDK_Frame2Gray(frame, gray, 50, 50, 0)
+    dll.IRSDK_Frame2Gray(frame, gray, c_float(50), c_float(50), 0)
 
 
 # 转rgb
