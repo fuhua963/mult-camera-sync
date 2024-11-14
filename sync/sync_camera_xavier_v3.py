@@ -334,9 +334,10 @@ def config_camera(nodemap):
                 return False
             # Set exposure time to 10000 us
             node_exposure_time.SetValue(EXPOSURE_TIME)
+            print(f"exposure time is {node_exposure_time.GetValue()} us")
         # 显示曝光时间
-        print(f"exposure time is {node_exposure_time.GetValue()} us")
-   
+        
+#    
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
         node_gain_auto = PySpin.CEnumerationPtr(nodemap.GetNode('GainAuto'))
