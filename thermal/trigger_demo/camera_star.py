@@ -7,6 +7,7 @@ from ctypes import *
 from queue import Queue
 import threading
 from config import *
+from PIL import Image
 
 class CameraStar:
     def __init__(self):
