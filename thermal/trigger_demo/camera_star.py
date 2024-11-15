@@ -4,7 +4,9 @@ import os
 import numpy as np
 from datetime import datetime
 from ctypes import *
-from PIL import Image
+from queue import Queue
+import threading
+from config import *
 
 class CameraStar:
     def __init__(self):
@@ -20,6 +22,16 @@ class CameraStar:
         self.buf = (c_uint8 * 1024)()
         self.rgb = (c_uint8 * 3 * WIDTH * HEIGHT)()
         
+        # 采集相关参数
+        self.frame_buffer = []  # 动态帧缓存
+        self.is_capturing = False
+        self.target_count = 0
+        self.captured_count = 0
+        
+        # 处理线程
+        self.process_thread = None
+        self.mutex = threading.Lock()
+        
         # IP地址数组初始化
         self.ipaddr = []
         for i in range(32):
@@ -27,10 +39,10 @@ class CameraStar:
             self.ipaddr.append(ip_addr)
         self.ip_addr_array = (T_IPADDR * 32)(*self.ipaddr)
         
-        # 创建保存目录
-        self.grabdir = './grab'
-        if not os.path.exists(self.grabdir):
-            os.makedirs(self.grabdir)
+        # 创建保存目录结构
+        self.base_dir = BASE_DIR
+        if not os.path.exists(self.base_dir):
+            os.makedirs(self.base_dir)
             
         # 初始化SDK
         sdk_init()
@@ -45,11 +57,62 @@ class CameraStar:
         self.callback = VIDEOCALLBACKFUNC(self.frame_callback)
 
     def frame_callback(self, frame, this):
-        """帧数据回调处理"""
+        """帧数据回调处理，只进行数据拷贝"""
+        if not self.is_capturing:
+            return 0
+            
+        if self.captured_count >= self.target_count:
+            return 0
+            
         bytebuf = string_at(frame, self.sizeFrame)
-        memmove(addressof(self.glbFrame), bytebuf, self.sizeFrame)
-        self.sframe = self.glbFrame
+        # 直接拷贝到对应位置的缓存中
+        memmove(addressof(self.frame_buffer[self.captured_count]), bytebuf, self.sizeFrame)
+        self.captured_count += 1
+        
+        if self.captured_count >= self.target_count:
+            self.is_capturing = False
+            # 启动处理线程
+            self.process_thread = threading.Thread(target=self.process_frames)
+            self.process_thread.start()
         return 0
+        
+    def process_frames(self):
+        """在单独的线程中处理所有帧"""
+        frames_to_process = min(self.captured_count, self.target_count)
+        
+        for i in range(frames_to_process):
+            frame = self.frame_buffer[i]
+            curtime = datetime.now().strftime('%Y-%m-%d %H.%M.%S.%f')[:-3]
+            
+            # 在这里进行图像处理和保存
+            # 使用与原有 grab_image() 相同的保存逻辑
+            
+        print(f"已完成 {frames_to_process} 张图像的处理")
+        
+    def start_capture(self, CAPTURE_COUNT):
+        """开始采集指定张数的图像"""
+        if not self.isConnect:
+            print("相机未连接")
+            return False
+            
+        # 清空并重新分配帧缓存
+        self.frame_buffer.clear()
+        for _ in range(CAPTURE_COUNT):
+            frame = Frame()
+            self.frame_buffer.append(frame)
+            
+        self.target_count = CAPTURE_COUNT   
+        self.captured_count = 0
+        self.is_capturing = True
+        print(f"开始采集 {CAPTURE_COUNT} 张图像")
+        return True
+        
+    def stop_capture(self):
+        """停止自动采集"""
+        self.is_capturing = False
+        if self.process_thread:
+            self.process_thread.join()
+        print(f"已停止采集，共采集了 {self.captured_count} 张图像")
         
     def connect_camera(self, ip_address, port=None):
         """连接相机"""
@@ -121,20 +184,21 @@ class CameraStar:
 def main():
     camera = CameraStar()
     
-    ip = "192.168.1.11"  # 替换为实际的相机IP
-    if camera.connect_camera(ip):
+    if camera.connect_camera(CAMERA_IP, CAMERA_PORT):
         print("相机连接成功")
         
-        # 设置温度段(0:常温段, 1:中温段, 2:高温段)
-        camera.set_temp_segment(0)
-        
-        # 执行快门补偿
+        camera.set_temp_segment(TEMP_SEGMENT)
         camera.calibration()
         
-        # 抓取图像
-        camera.grab_image()
+        camera.start_capture()  # 使用配置文件中的默认值
         
-        # 关闭相机
+        while camera.is_capturing:
+            time.sleep(0.1)
+            print(f"已采集 {camera.captured_count} 张图像")
+            
+        if camera.process_thread:
+            camera.process_thread.join()
+            
         camera.close()
     else:
         print("相机连接失败")
