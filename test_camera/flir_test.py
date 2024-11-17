@@ -713,6 +713,10 @@ def main():
 
             # Retrieve GenICam nodemap
             nodemap = cam.GetNodeMap()
+            # cam.DeInit()
+            # cam_list.Clear()
+            # system.ReleaseInstance() 
+            # return False
 
             # Configure camera
             if config_camera(nodemap) is False:
