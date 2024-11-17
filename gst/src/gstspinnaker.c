@@ -747,7 +747,7 @@ gst_spinnaker_src_start (GstBaseSrc * bsrc)
 }
 
 //stops streaming and closes the camera
-static gboolean
+/*static gboolean
 gst_spinnaker_src_stop (GstBaseSrc * bsrc)
 {
 	GstSpinnakerSrc *src = GST_SPINNAKER_SRC (bsrc);
@@ -769,6 +769,51 @@ gst_spinnaker_src_stop (GstBaseSrc * bsrc)
 
 	fail:  
 	return TRUE;
+}*/
+
+static gboolean
+gst_spinnaker_src_stop (GstBaseSrc * bsrc)
+{
+    GstSpinnakerSrc *src = GST_SPINNAKER_SRC (bsrc);
+
+    GST_DEBUG_OBJECT (src, "stop");
+    spinImage hCamera = NULL;
+
+    GST_DEBUG_OBJECT(src, "Getting camera from list");
+    EXEANDCHECK(spinCameraListGet(src->hCameraList, src->cameraID, &hCamera));
+    GST_DEBUG_OBJECT(src, "Camera obtained");
+
+    GST_DEBUG_OBJECT(src, "Ending camera acquisition");
+    EXEANDCHECK(spinCameraEndAcquisition(hCamera));
+    GST_DEBUG_OBJECT(src, "Camera acquisition ended");
+
+    GST_DEBUG_OBJECT(src, "Deinitializing camera");
+    EXEANDCHECK(spinCameraDeInit(hCamera));
+    GST_DEBUG_OBJECT(src, "Camera deinitialized");
+
+    GST_DEBUG_OBJECT(src, "Releasing camera");
+    EXEANDCHECK(spinCameraRelease(hCamera));
+    GST_DEBUG_OBJECT(src, "Camera released");
+
+    GST_DEBUG_OBJECT(src, "Clearing camera list");
+    EXEANDCHECK(spinCameraListClear(src->hCameraList));
+    GST_DEBUG_OBJECT(src, "Camera list cleared");
+
+    GST_DEBUG_OBJECT(src, "Destroying camera list");
+    EXEANDCHECK(spinCameraListDestroy(src->hCameraList));
+    GST_DEBUG_OBJECT(src, "Camera list destroyed");
+
+    GST_DEBUG_OBJECT(src, "Releasing system instance");
+    EXEANDCHECK(spinSystemReleaseInstance(src->hSystem));
+    GST_DEBUG_OBJECT(src, "System instance released");
+
+    gst_spinnaker_src_reset (src);
+    GST_DEBUG_OBJECT (src, "stop completed");
+    return TRUE;
+
+fail:
+    GST_ERROR_OBJECT(src, "Failed to stop Spinnaker source");
+    return TRUE;
 }
 
 static gboolean
