@@ -257,6 +257,24 @@ def config_camera(nodemap):
     print("\n---------- CONFIG CAMERA ----------\n")
     try:
         result = True
+        """------------------- 设置图像格式--------------------"""
+        node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+        if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
+            node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
+            if PySpin.IsReadable(node_pixel_format_BayerRG8):
+                # Retrieve the integer value from the entry node
+                pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
+
+                # Set integer as new value for enumeration node
+                node_pixel_format.SetIntValue(pixel_format_BayerRG8)
+
+                print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
+
+            else:
+                print('Pixel format BayerRG8 8 not readable...')
+
+        else:
+            print('Pixel format not readable or writable...')
         """ -------------------- 设置ROI -------------------- """
         node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
         if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
@@ -814,7 +832,7 @@ def acquire_images(cam, nodemap, path, mode):
                 
                 # 直接获取图像数据并转换
                 converted = processor.Convert(image_result, PySpin.PixelFormat_RGB8)
-                images[i] = np.array(converted.GetNDArray(), copy=False)
+                images[i] = converted.GetNDArray()
                 
                 # 读取时间戳等信息
                 _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
