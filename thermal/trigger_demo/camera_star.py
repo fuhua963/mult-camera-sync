@@ -123,7 +123,6 @@ class CameraStar:
             
         # 使用配置文件中的参数
         count = count or CAPTURE_COUNT
-        sdk_sendcommand(self.handle, 0x0B, c_float(FPS))
         time.sleep(0.1)
         
         # 清空并重新分配帧缓存
