@@ -257,6 +257,24 @@ def config_camera(nodemap):
     print("\n---------- CONFIG CAMERA ----------\n")
     try:
         result = True
+        """------------------- 设置图像格式--------------------"""
+        node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+        if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
+            node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
+            if PySpin.IsReadable(node_pixel_format_BayerRG8):
+                # Retrieve the integer value from the entry node
+                pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
+
+                # Set integer as new value for enumeration node
+                node_pixel_format.SetIntValue(pixel_format_BayerRG8)
+
+                print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
+
+            else:
+                print('Pixel format BayerRG8 8 not readable...')
+
+        else:
+            print('Pixel format not readable or writable...')
         """ -------------------- 设置ROI -------------------- """
         node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
         if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
@@ -334,9 +352,10 @@ def config_camera(nodemap):
                 return False
             # Set exposure time to 10000 us
             node_exposure_time.SetValue(EXPOSURE_TIME)
+            print(f"exposure time is {node_exposure_time.GetValue()} us")
         # 显示曝光时间
-        print(f"exposure time is {node_exposure_time.GetValue()} us")
-   
+        
+#    
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
         node_gain_auto = PySpin.CEnumerationPtr(nodemap.GetNode('GainAuto'))
@@ -655,7 +674,7 @@ def read_chunk_data(image):
         result = False
     return result, exposure_time, timestamp
 
-def acquire_images(cam, nodemap,path,mode):
+# def acquire_images(cam, nodemap,path,mode):
     """
     This function acquires and saves 10 images from a device.
     Please see Acquisition example for more in-depth comments on acquiring images.
@@ -769,7 +788,84 @@ def acquire_images(cam, nodemap,path,mode):
     # return result, images, exposure_times, timestamps
     return 0
 
-
+def acquire_images(cam, nodemap, path, mode):
+    print('*** IMAGE ACQUISITION ***\n')
+    try:
+        # 预分配内存
+        images = np.empty((NUM_IMAGES, HEIGHT, WIDTH, 3), dtype=np.uint8)
+        timestamps = np.zeros(NUM_IMAGES, dtype=np.uint64)
+        exposure_times = np.zeros(NUM_IMAGES, dtype=np.float)
+        
+        # 创建图像处理器
+        processor = PySpin.ImageProcessor()
+        processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
+        
+        # 创建异步写入队列
+        write_queue = queue.Queue()
+        
+        def save_image_async():
+            while True:
+                data = write_queue.get()
+                if data is None:
+                    break
+                idx, img = data
+                filename = os.path.join(path, f"{idx:05d}.png")
+                cv.imwrite(filename, img)
+                write_queue.task_done()
+        
+        # 启动异步写入线程
+        write_thread = Thread(target=save_image_async)
+        write_thread.start()
+        
+        global running
+        for i in range(NUM_IMAGES):
+            if not running:
+                break
+                
+            try:
+                image_result = cam.GetNextImage()
+                
+                if image_result.IsIncomplete():
+                    print(f'Image incomplete with status {image_result.GetImageStatus()}')
+                    image_result.Release()
+                    continue
+                
+                # 直接获取图像数据并转换
+                converted = processor.Convert(image_result, PySpin.PixelFormat_RGB8)
+                images[i] = converted.GetNDArray()
+                
+                # 读取时间戳等信息
+                _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
+                
+                # 异步保存图像
+                if i > 0:  # 跳过第一帧
+                    write_queue.put((i-1, images[i-1].copy()))
+                
+                image_result.Release()
+                
+            except PySpin.SpinnakerException as ex:
+                print(f'Error: {ex}')
+                return False
+        
+        # 结束采集
+        cam.EndAcquisition()
+        global acquisition_flag
+        acquisition_flag = 1
+        
+        # 保存时间戳和曝光时间
+        np.savetxt(os.path.join(path, 'exposure_times.txt'), exposure_times[1:])
+        np.savetxt(os.path.join(path, 'timestamps.txt'), timestamps[1:])
+        
+        # 等待所有图像保存完成
+        write_queue.put(None)
+        write_thread.join()
+        
+        return True
+        
+    except PySpin.SpinnakerException as ex:
+        print(f'Error: {ex}')
+        return False
+    
 def save_images(images, exposure_times, timestamps, path):
     print('start saving images...')
     et_txt = open(os.path.join(path, 'exposure_times.txt'), 'w')

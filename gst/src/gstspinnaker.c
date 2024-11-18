@@ -170,7 +170,7 @@ bool8_t IsAvailableAndReadable(spinNodeHandle hNode, char nodeName[])
 }
 
 // This function helps to check if a node is available and writable
-bool8_t IsAvailableAndWritable(spinNodeHandle hNode, char nodeName[])
+bool8_t IsAvailableAndWritable(spinNodeHandle hNode, const char nodeName[])
 {
     bool8_t pbAvailable = False;
     spinError err = SPINNAKER_ERR_SUCCESS;
@@ -387,7 +387,7 @@ gst_spinnaker_src_set_property (GObject * object, guint property_id,
 	}
 
 	fail:
-	return;
+	return TRUE;
 }
 
 void
@@ -447,12 +447,12 @@ gst_spinnaker_set_node_int(GstBaseSrc* bsrc, const char* nodeName, int64_t* val)
 	}
 
 	if (val > maxVal) {
-		GST_ERROR_OBJECT(src, "Unsupported value, desired value exceeds node maximum: %d, %d", val, maxVal);
+		GST_ERROR_OBJECT(src, "Unsupported value, desired value exceeds node maximum: %ld, %ld", val, maxVal);
 		return; //make sure we don't exceed max val
 	}
 
 	if (val < minVal) {
-		GST_ERROR_OBJECT(src, "Unsupported value, desired value below node minimum: %d, %d", val, minVal);
+		GST_ERROR_OBJECT(src, "Unsupported value, desired value below node minimum: %ld, %ld", val, minVal);
 		return; //make sure we don't exceed max val
 	}
 
@@ -747,7 +747,7 @@ gst_spinnaker_src_start (GstBaseSrc * bsrc)
 }
 
 //stops streaming and closes the camera
-static gboolean
+/*static gboolean
 gst_spinnaker_src_stop (GstBaseSrc * bsrc)
 {
 	GstSpinnakerSrc *src = GST_SPINNAKER_SRC (bsrc);
@@ -769,6 +769,62 @@ gst_spinnaker_src_stop (GstBaseSrc * bsrc)
 
 	fail:  
 	return TRUE;
+}*/
+
+
+/* 停止相机采集并释放资源的函数 */
+static gboolean
+gst_spinnaker_src_stop (GstBaseSrc * bsrc)
+{
+    GstSpinnakerSrc *src = GST_SPINNAKER_SRC (bsrc);
+
+    GST_DEBUG_OBJECT (src, "stop");
+    spinImage hCamera = NULL;
+
+    /* 从相机列表中获取相机句柄 */
+    GST_DEBUG_OBJECT(src, "Getting camera from list");
+    EXEANDCHECK(spinCameraListGet(src->hCameraList, src->cameraID, &hCamera));
+    GST_DEBUG_OBJECT(src, "Camera obtained");
+
+    /* 停止相机采集 */
+    GST_DEBUG_OBJECT(src, "Ending camera acquisition");
+    EXEANDCHECK(spinCameraEndAcquisition(hCamera));
+    GST_DEBUG_OBJECT(src, "Camera acquisition ended");
+
+    /* 反初始化相机 */
+    GST_DEBUG_OBJECT(src, "Deinitializing camera");
+    EXEANDCHECK(spinCameraDeInit(hCamera));
+    GST_DEBUG_OBJECT(src, "Camera deinitialized");
+
+    /* 释放相机资源 */
+    GST_DEBUG_OBJECT(src, "Releasing camera");
+    EXEANDCHECK(spinCameraRelease(hCamera));
+    GST_DEBUG_OBJECT(src, "Camera released");
+
+    /* 清空相机列表 */
+    GST_DEBUG_OBJECT(src, "Clearing camera list");
+    EXEANDCHECK(spinCameraListClear(src->hCameraList));
+    GST_DEBUG_OBJECT(src, "Camera list cleared");
+
+    /* 销毁相机列表 */
+    GST_DEBUG_OBJECT(src, "Destroying camera list");
+    EXEANDCHECK(spinCameraListDestroy(src->hCameraList));
+    GST_DEBUG_OBJECT(src, "Camera list destroyed");
+
+    /* 释放系统实例 */
+    GST_DEBUG_OBJECT(src, "Releasing system instance");
+    EXEANDCHECK(spinSystemReleaseInstance(src->hSystem));
+    GST_DEBUG_OBJECT(src, "System instance released");
+
+    /* 重置源对象状态 */
+    gst_spinnaker_src_reset (src);
+    GST_DEBUG_OBJECT (src, "stop completed");
+    return TRUE;
+
+fail:
+    /* 错误处理 */
+    GST_ERROR_OBJECT(src, "Failed to stop Spinnaker source");
+    return TRUE;
 }
 
 static gboolean
@@ -1032,11 +1088,11 @@ gst_spinnaker_src_create (GstPushSrc * psrc, GstBuffer ** buf)
 
 	//GST_DEBUG_OBJECT(src, "height is: %d", height);
 	if (width != src->nWidth) {
-		GST_ERROR_OBJECT(src, "Width doesn't match: %d, %d" , width, src->nWidth);
+		GST_ERROR_OBJECT(src, "Width doesn't match: %ld, %ld" , width, src->nWidth);
 		return GST_FLOW_ERROR;
 	}
 	if (height != src->nHeight) {
-		GST_ERROR_OBJECT(src, "Height doesn't match: %d, %d", height, src->nHeight);
+		GST_ERROR_OBJECT(src, "Height doesn't match: %ld, %ld", height, src->nHeight);
 		return GST_FLOW_ERROR;
 	}
 	// Create a new buffer for the image

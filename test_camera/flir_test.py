@@ -13,10 +13,9 @@ from os import path
 import signal
 
 #  flir camera set
-NUM_IMAGES = 50  # number of images to save
+NUM_IMAGES = 20  # number of images to save
 
-FRAMERATE = 15
-FRAMERATE = int(10) # fps
+FRAMERATE = int(15) # fps
 EXPOSURE_TIME = 50000 # us
 Auto_Exposure = False   #自动曝光设置
 EX_Trigger = False      #触发方式设置
@@ -93,6 +92,26 @@ def config_camera(nodemap):
     print("\n---------- CONFIG CAMERA ----------\n")
     try:
         result = True
+        """------------------- 设置图像格式--------------------""" 
+        node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+        if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
+            node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
+            if PySpin.IsReadable(node_pixel_format_BayerRG8):
+                # Retrieve the integer value from the entry node
+                pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
+
+                # Set integer as new value for enumeration node
+                node_pixel_format.SetIntValue(pixel_format_BayerRG8)
+
+                print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
+
+            else:
+                print('Pixel format BayerRG8 8 not readable...')
+
+        else:
+            print('Pixel format not readable or writable...')
+       
+
         """ -------------------- 设置ROI -------------------- """
         node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
         if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
@@ -333,7 +352,18 @@ def config_camera(nodemap):
 
     except PySpin.SpinnakerException as ex:
         print('Error: %s' % ex)
-        return False
+        global cam_list, system
+        for cam in cam_list:
+            try:
+                cam.EndAcquisition()
+                cam.DeInit()
+            except:
+                pass
+        # 清空相机列表
+        cam_list.Clear()
+        # 释放系统实例
+        system.ReleaseInstance()
+        sys.exit(0)
     return result
 
 
@@ -490,151 +520,73 @@ def read_chunk_data(image):
     return result, exposure_time, timestamp
 
 def acquire_images(cam, nodemap):
-    """
-    This function acquires and saves 10 images from a device.
-    Please see Acquisition example for more in-depth comments on acquiring images.
-
-    :param cam: Camera to acquire images from.
-    :param nodemap: Device nodemap.
-    :type cam: CameraPtr
-    :type nodemap: INodeMap
-    :return: True if successful, False otherwise.
-    :rtype: bool
-    """
-
-    print('*** IMAGE ACQUISITION ***\n')
     try:
-        result = True
-
-
-
-        print('Acquisition mode set to continuous...')
-
-        #  Begin acquiring images
-        cam.BeginAcquisition()
-
-        # Retrieve, convert, and save images
-
-        # Create ImageProcessor instance for post processing images
+        # 预分配内存
+        images = np.empty((NUM_IMAGES, HEIGHT, WIDTH,3), dtype=np.uint8)
+        exposure_times = np.zeros(NUM_IMAGES, dtype=np.float64)
+        timestamps = np.zeros(NUM_IMAGES, dtype=np.uint64)
         processor = PySpin.ImageProcessor()
-        
-        # Set default image processor color processing method
-        #
-        # *** NOTES ***
-        # By default, if no specific color processing algorithm is set, the image
-        # processor will default to NEAREST_NEIGHBOR method.
         processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
         
-        images = list()
-        timestamps = list()
-        exposure_times = list()
+        # 配置相机缓冲
+        cam.BeginAcquisition()
+        
         for i in range(NUM_IMAGES):
             try:
-                # Retrieve next received image and ensure image completion
-                # By default, GetNextImage will block indefinitely until an image arrives.
-                # In this example, the timeout value is set to [exposure time + 1000]ms to ensure that an image has enough time to arrive under normal conditions
-                image_result = cam.GetNextImage()
+                # 获取图像
+                image_result = cam.GetNextImage(1000)
                 
                 if image_result.IsIncomplete():
-                    print('Image incomplete with image status %d...' % image_result.GetImageStatus())
-
-                else:
-                    # Print image information
-                    width = image_result.GetWidth()
-                    height = image_result.GetHeight()
-                    print('Grabbed Image %d, width = %d, height = %d' % (i, width, height))
+                    continue
                     
-                    # Read chunk data
-                    result, exposure_time, timestamp = read_chunk_data(image_result)
-                    exposure_times.append(exposure_time)
-                    timestamps.append(timestamp)
-                    
-                    # Convert image to RGB8
-                    images.append(processor.Convert(image_result, PySpin.PixelFormat_RGB8))
-                    
-                    
-                # Release image
+                # 直接写入预分配的数组，避免复制
+                chunk_data = image_result.GetChunkData()
+                exposure_times[i] = chunk_data.GetExposureTime()
+                timestamps[i] = chunk_data.GetTimestamp()
+                images[i] = processor.Convert(image_result, PySpin.PixelFormat_RGB8).GetNDArray()
+ 
+                
                 image_result.Release()
-
+                
             except PySpin.SpinnakerException as ex:
-                print('Error: %s' % ex)
-                return False
-        
-        # End acquisition
+                print(f'Error: {ex}')
+                continue
+                
         cam.EndAcquisition()
+        return True, images, exposure_times, timestamps
         
-
     except PySpin.SpinnakerException as ex:
-        print('Error: %s' % ex)
-        result = False
-
-    return result, images, exposure_times, timestamps
+        global cam_list, system
+        for cam in cam_list:
+            try:
+                cam.EndAcquisition()
+                cam.DeInit()
+            except:
+                pass
+        cam_list.Clear()
+        system.ReleaseInstance()
+        print(f'Error: {ex}')
+        return False, None, None, None
 
 
 def save_images(images, exposure_times, timestamps, path):
     print('start saving images...')
     et_txt = open(os.path.join(path, 'exposure_times.txt'), 'w')
     ts_txt = open(os.path.join(path, 'timestamps.txt'), 'w')
+    
     for i in range(len(images)):
         et_txt.write('%s\n' % exposure_times[i])
         ts_txt.write('%s\n' % timestamps[i])
         filename = os.path.join(path, str(i).rjust(5, '0') + ".png")
-        images[i].Save(filename)
+        
+        # 使用 OpenCV 保存图像
+        cv2.imwrite(filename, images[i])
+        
+
+    
     et_txt.close()
     ts_txt.close()
-    return True 
-
-
-# def run_single_camera(cam):
-#     """
-#     This function acts as the body of the example; please see NodeMapInfo example
-#     for more in-depth comments on setting up cameras.
-
-#     :param cam: Camera to run on.
-#     :type cam: CameraPtr
-#     :return: True if successful, False otherwise.
-#     :rtype: bool
-#     """
-#     try:
-#         result = True
-
-#         # Retrieve TL device nodemap and print device information
-#         nodemap_tldevice = cam.GetTLDeviceNodeMap()
-
-#         result &= print_device_info(nodemap_tldevice)
-
-#         # Initialize camera
-#         cam.Init()
-
-#         # Retrieve GenICam nodemap
-#         nodemap = cam.GetNodeMap()
-
-#         # Configure camera
-#         if config_camera(nodemap) is False:
-#             return False
-
-#         # Acquire images
-#         result, images, exposure_times, timestamps = acquire_images(cam, nodemap)
-        
-#         # Save image
-#         path = os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
-#         ensure_dir(path)        
-#         result &= save_images(images, exposure_times, timestamps, path)
-        
-#         # Disable chunk data
-#         result &= disable_chunk_data(nodemap)
-        
-#         # Reset trigger
-#         result &= reset_trigger(nodemap)
-        
-#         # Deinitialize camera
-#         cam.DeInit()
-
-#     except PySpin.SpinnakerException as ex:
-#         print('Error: %s' % ex)
-#         result = False
-
-#     return result
+    return True
 
 
 def main():
@@ -713,6 +665,10 @@ def main():
 
             # Retrieve GenICam nodemap
             nodemap = cam.GetNodeMap()
+            # cam.DeInit()
+            # cam_list.Clear()
+            # system.ReleaseInstance() 
+            # return False
 
             # Configure camera
             if config_camera(nodemap) is False:
