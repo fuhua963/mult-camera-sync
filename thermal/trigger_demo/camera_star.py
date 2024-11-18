@@ -214,24 +214,28 @@ class CameraStar:
 def main():
     camera = CameraStar()
     
-    if camera.connect_camera(CAMERA_IP, CAMERA_PORT):
+    result = camera.connect_camera(CAMERA_IP, CAMERA_PORT)
+    if result:
         print("相机连接成功")
-        
-        camera.set_temp_segment(TEMP_SEGMENT)
-        camera.calibration()
-        
-        camera.start_capture()  # 使用配置文件中的默认值
-        
-        while camera.is_capturing:
-            time.sleep(0.1)
-            print(f"已采集 {camera.captured_count} 张图像")
-            
-        if camera.process_thread:
-            camera.process_thread.join()
-            
-        camera.close()
-    else:
+    else:   
         print("相机连接失败")
+    # print("相机连接成功")
+    
+    camera.set_temp_segment(TEMP_SEGMENT)
+    camera.calibration()
+    
+    camera.start_capture()  # 使用配置文件中的默认值
+    
+    while camera.is_capturing:
+        time.sleep(0.1)
+        print(f"已采集 {camera.captured_count} 张图像")
+        
+    if camera.process_thread:
+        camera.process_thread.join()
+        
+    camera.close()
+    # else:
+    #     print("相机连接失败")
 
 if __name__ == "__main__":
     main()

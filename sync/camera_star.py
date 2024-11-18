@@ -40,7 +40,7 @@ class CameraStar:
             self.ipaddr.append(ip_addr)
         self.ip_addr_array = (T_IPADDR * 32)(*self.ipaddr)
         
-        # 创建保存目录结构
+        # 建保存目录结构
         self.base_dir = BASE_DIR
         if not os.path.exists(self.base_dir):
             os.makedirs(self.base_dir)
@@ -162,6 +162,8 @@ class CameraStar:
         time.sleep(1)
         
         self.isConnect = sdk_isconnect(self.handle)
+        # if self.isConnect:
+        self.start_monitor()  # 连接成功后启动监控
         return self.isConnect
 
     def set_temp_segment(self, index):
@@ -207,9 +209,43 @@ class CameraStar:
         
     def close(self):
         """关闭相机连接"""
+        # 停止监控线程
+        if hasattr(self, 'monitor_thread'):
+            self.is_monitoring = False  # 添加标志位控制线程退出
+            self.monitor_thread.join(timeout=2)  # 等待线程结束，最多等待2秒
+            
+        # 停止相机连接
         if self.isConnect:
             sdk_stop(self.handle)
         sdk_quit()
+
+    def start_monitor(self):
+        """启动连接监控"""
+        self.is_monitoring = True  # 添加控制标志
+        
+        def monitor_thread():
+            while self.is_monitoring:  # 使用标志控制循环
+                self.monitor()
+                time.sleep(1)
+                
+        self.monitor_thread = threading.Thread(target=monitor_thread, daemon=True)
+        self.monitor_thread.start()
+
+    def monitor(self):
+        """监控相机连接状态"""
+        self.isConnect = sdk_isconnect(self.handle)
+        if self.isConnect:
+            current_status = sdk_isconnect(self.handle)
+            if not current_status:
+                print("相机连接已断开，尝试重新连接...")
+                sdk_connect(self.handle)
+                self.isConnect = sdk_isconnect(self.handle)
+                if self.isConnect:
+                    print("相机重新连接成功")
+                else:
+                    print("相机重新连接失败")
+        else:
+            print("相机未连接")
 
 def main():
     camera = CameraStar()
@@ -232,6 +268,17 @@ def main():
         camera.close()
     else:
         print("相机连接失败")
+        # ctrl + c 退出
+        while True:
+            try:
+                time.sleep(1)
+            except KeyboardInterrupt:
+                print("退出程序")
+                #结束所有子线程
+                camera.close()
+                
+                break
+
 
 if __name__ == "__main__":
     main()
