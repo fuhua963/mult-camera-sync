@@ -49,12 +49,7 @@ roi_x0 = int(340)
 roi_y0 = int(60)
 roi_x1 = int(939)
 roi_y1 = int(659)
-#  flir camera set
-OFFSET_X = 224
-OFFSET_Y = 524
-WIDTH = 2000
-HEIGHT = 1000
-class AviType:
+#  flir camera set42
     """'Enum' to select AVI video type to be created and saved"""
     UNCOMPRESSED = 0
     MJPG = 1
@@ -794,7 +789,7 @@ def acquire_images(cam, nodemap, path, mode):
         # 预分配内存
         images = np.empty((NUM_IMAGES, HEIGHT, WIDTH, 3), dtype=np.uint8)
         timestamps = np.zeros(NUM_IMAGES, dtype=np.uint64)
-        exposure_times = np.zeros(NUM_IMAGES, dtype=np.float)
+        exposure_times = np.zeros(NUM_IMAGES, dtype=float)
         
         # 创建图像处理器
         processor = PySpin.ImageProcessor()
