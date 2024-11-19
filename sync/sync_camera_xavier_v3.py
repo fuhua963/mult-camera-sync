@@ -49,7 +49,12 @@ roi_x0 = int(340)
 roi_y0 = int(60)
 roi_x1 = int(939)
 roi_y1 = int(659)
-#  flir camera set42
+#  flir camera set
+OFFSET_X = 224
+OFFSET_Y = 524
+WIDTH = 2000
+HEIGHT = 1000
+class AviType:
     """'Enum' to select AVI video type to be created and saved"""
     UNCOMPRESSED = 0
     MJPG = 1
@@ -88,22 +93,22 @@ def send_pulse_command(num_pulses, frequency):
     print(f"Sent command: {command.strip()}")  
 
 
-def trigger_star(out_io,fre,duty_cycle):
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
-    # pwm = GPIO.PWM(out_io, fre)	# 50Hz
-    # pwm.start(duty_cycle)	# 占空比为50%
-    # pwm.stop()
-    for i in range(NUM_IMAGES):
-        GPIO.output(out_io, GPIO.HIGH)
-        time.sleep(0.5/fre)
-        GPIO.output(out_io, GPIO.LOW)
-        time.sleep(0.5/fre)
-        print(i)
+# def trigger_star(out_io,fre,duty_cycle):
+#     GPIO.setmode(GPIO.BOARD)
+#     GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
+#     # pwm = GPIO.PWM(out_io, fre)	# 50Hz
+#     # pwm.start(duty_cycle)	# 占空比为50%
+#     # pwm.stop()
+#     for i in range(NUM_IMAGES):
+#         GPIO.output(out_io, GPIO.HIGH)
+#         time.sleep(0.5/fre)
+#         GPIO.output(out_io, GPIO.LOW)
+#         time.sleep(0.5/fre)
+#         print(i)
 
-    print("pulse is over ")
-    GPIO.cleanup()
-    return 0
+#     print("pulse is over ")
+#     GPIO.cleanup()
+#     return 0
 
 class event():
     def __init__(self,num,path):
@@ -253,23 +258,24 @@ def config_camera(nodemap):
     try:
         result = True
         """------------------- 设置图像格式--------------------"""
-        node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
-        if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
-            node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
-            if PySpin.IsReadable(node_pixel_format_BayerRG8):
-                # Retrieve the integer value from the entry node
-                pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
+        # node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+        # if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
+        #     node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
+        #     if PySpin.IsReadable(node_pixel_format_BayerRG8):
+        #         # Retrieve the integer value from the entry node
+        #         pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
 
-                # Set integer as new value for enumeration node
-                node_pixel_format.SetIntValue(pixel_format_BayerRG8)
+        #         # Set integer as new value for enumeration node
+        #         node_pixel_format.SetIntValue(pixel_format_BayerRG8)
 
-                print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
+        #         print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
 
-            else:
-                print('Pixel format BayerRG8 8 not readable...')
+        #     else:
+        #         print('Pixel format BayerRG8 8 not readable...')
 
-        else:
-            print('Pixel format not readable or writable...')
+        # else:
+        #     print('Pixel format not readable or writable...')
+
         """ -------------------- 设置ROI -------------------- """
         node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
         if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
@@ -795,23 +801,6 @@ def acquire_images(cam, nodemap, path, mode):
         processor = PySpin.ImageProcessor()
         processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
         
-        # 创建异步写入队列
-        write_queue = queue.Queue()
-        
-        def save_image_async():
-            while True:
-                data = write_queue.get()
-                if data is None:
-                    break
-                idx, img = data
-                filename = os.path.join(path, f"{idx:05d}.png")
-                cv.imwrite(filename, img)
-                write_queue.task_done()
-        
-        # 启动异步写入线程
-        write_thread = Thread(target=save_image_async)
-        write_thread.start()
-        
         global running
         for i in range(NUM_IMAGES):
             if not running:
@@ -832,9 +821,10 @@ def acquire_images(cam, nodemap, path, mode):
                 # 读取时间戳等信息
                 _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
                 
-                # 异步保存图像
-                if i > 0:  # 跳过第一帧
-                    write_queue.put((i-1, images[i-1].copy()))
+                # # 同步保存图像
+                # if i > 0:  # 跳过第一帧
+                #     filename = os.path.join(path, f"{i-1:05d}.png")
+                #     cv.imwrite(filename, images[i-1])
                 
                 image_result.Release()
                 
@@ -847,13 +837,15 @@ def acquire_images(cam, nodemap, path, mode):
         global acquisition_flag
         acquisition_flag = 1
         
+        for i in range(1,NUM_IMAGES):  # 跳过第一帧
+            if not running:
+                break
+            filename = os.path.join(path, f"{i-1:05d}.png")
+            cv.imwrite(filename, images[i-1])
+
         # 保存时间戳和曝光时间
         np.savetxt(os.path.join(path, 'exposure_times.txt'), exposure_times[1:])
         np.savetxt(os.path.join(path, 'timestamps.txt'), timestamps[1:])
-        
-        # 等待所有图像保存完成
-        write_queue.put(None)
-        write_thread.join()
         
         return True
         
@@ -1137,9 +1129,8 @@ def main():
         except PySpin.SpinnakerException as ex:
             print('Error: %s' % ex)
             result = False
-
-
-
+            cam.DeInit()
+        
         print('Camera %d example complete... \n' % i)
 
     # Release reference to camera
