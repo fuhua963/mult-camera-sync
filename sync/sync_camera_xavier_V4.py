@@ -25,7 +25,7 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 
 # 全局变量设置
-NUM_IMAGES = 10+1  # number of images to save
+NUM_IMAGES = 5+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
@@ -54,6 +54,7 @@ OFFSET_X = 224
 OFFSET_Y = 524
 WIDTH = 2000
 HEIGHT = 1000
+
 global cam_list, system 
 running = True
 def signal_handler(sig, frame):
@@ -225,7 +226,6 @@ def print_device_info(nodemap):
 
     except PySpin.SpinnakerException as ex:
         print('Error: %s' % ex)
-        print("报错")
         return False
 
     return result
@@ -240,9 +240,14 @@ def config_camera(nodemap):
         if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
             node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
             if PySpin.IsReadable(node_pixel_format_BayerRG8):
+                # Retrieve the integer value from the entry node
                 pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
+
+                # Set integer as new value for enumeration node
                 node_pixel_format.SetIntValue(pixel_format_BayerRG8)
+
                 print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
+
             else:
                 print('Pixel format BayerRG8 8 not readable...')
 
@@ -428,6 +433,22 @@ def config_camera(nodemap):
                 print('\nUnable to set Trigger Mode (enumeration retrieval). Aborting...\n')
                 return False
             node_trigger_mode.SetIntValue(PySpin.TriggerMode_Off)
+
+
+            node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+            if not PySpin.IsReadable(node_trigger_source) or not PySpin.IsWritable(node_trigger_source):
+                print('Unable to get trigger source (node retrieval). Aborting...')
+                return False
+            node_trigger_source_software = node_trigger_source.GetEntryByName('Software')
+            if not PySpin.IsReadable(node_trigger_source_software):
+                print('Unable to get trigger source (enum entry retrieval). Aborting...')
+                return False
+            node_trigger_source.SetIntValue(node_trigger_source_software.GetValue())
+            print('Trigger source set to software...')
+
+
+
+    
 
 
         """-----------------------设置捕获方式-------------------"""
@@ -753,28 +774,31 @@ def main():
     ## config prophesee camera
     path = os.path.abspath(os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
     ensure_dir(path) 
-    # prophesee_cam = event(0,path)
-    # prophesee_cam.config_prophesee()
+    prophesee_cam = event(0,path)
+    prophesee_cam.config_prophesee()
     # Run example on each camera
     for i, cam in enumerate(cam_list):
 
         print('Running example for camera %d...' % i)
         try:
             result = True
+
             # Retrieve TL device nodemap and print device information
             nodemap_tldevice = cam.GetTLDeviceNodeMap()
+
             result &= print_device_info(nodemap_tldevice)
-            print("init——camera")
+
             # Initialize camera
             cam.Init()
+            print("init")
             # Retrieve GenICam nodemap
             nodemap = cam.GetNodeMap()
+
             # Configure camera
             if config_camera(nodemap) is False:
                 cam.DeInit()
                 cam_list.Clear()
                 system.ReleaseInstance() 
-                print("config camera is wrong")
                 return False
             # acquire images  flag 
             global acquisition_flag
@@ -784,12 +808,12 @@ def main():
             cam.BeginAcquisition()
             # 多线程配置 
             print("线程开始")
-            # prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
+            prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
 
             #多线程启动
-            # prophesee_thread.start()
+            prophesee_thread.start()
             flir_thread.start()
             # trigger_thread.start()
             ##-------------  发送指令  --------—--------##
@@ -800,14 +824,14 @@ def main():
             ser.close()
 
             ##-----------------------------------------##
-            # prophesee_thread.join()
+            prophesee_thread.join()
             flir_thread.join()
             # 将存放都放在了 acquire 函数里
-            # try : 
-            #     acquisition_flag = 0 # 结束了采集
-            #     prophesee_cam.prophesee_tirgger_found()
-            # except :
-            #     print("save is wrong")
+            try : 
+                acquisition_flag = 0 # 结束了采集
+                prophesee_cam.prophesee_tirgger_found()
+            except :
+                print("save is wrong")
             # Disable chunk data
             result &= disable_chunk_data(nodemap)
         
@@ -815,14 +839,15 @@ def main():
             result &= reset_trigger(nodemap)
             
             # Deinitialize camera
-            print("deinit camera")
             cam.DeInit()
 
         except PySpin.SpinnakerException as ex:
             print('Error: %s' % ex)
             result = False
             cam.DeInit()
-    print("clear camera")
+        
+        print('Camera %d example complete... \n' % i)
+
     cam_list.Clear()
     del cam
     system.ReleaseInstance()
