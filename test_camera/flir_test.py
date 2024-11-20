@@ -302,7 +302,6 @@ def config_camera(nodemap):
                 return False
             node_trigger_mode.SetIntValue(PySpin.TriggerMode_Off)
 
-
         """-----------------------设置捕获方式-------------------"""
         # Set acquisition mode to continuous
         node_acquisition_mode = PySpin.CEnumerationPtr(nodemap.GetNode('AcquisitionMode'))
@@ -665,10 +664,6 @@ def main():
 
             # Retrieve GenICam nodemap
             nodemap = cam.GetNodeMap()
-            # cam.DeInit()
-            # cam_list.Clear()
-            # system.ReleaseInstance() 
-            # return False
 
             # Configure camera
             if config_camera(nodemap) is False:

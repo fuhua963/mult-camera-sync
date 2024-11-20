@@ -25,7 +25,7 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 
 # 全局变量设置
-NUM_IMAGES = 20+1  # number of images to save
+NUM_IMAGES = 10+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
@@ -54,13 +54,6 @@ OFFSET_X = 224
 OFFSET_Y = 524
 WIDTH = 2000
 HEIGHT = 1000
-class AviType:
-    """'Enum' to select AVI video type to be created and saved"""
-    UNCOMPRESSED = 0
-    MJPG = 1
-    H264 = 2
-chosenAviType = AviType.UNCOMPRESSED  # change me!
-
 global cam_list, system 
 running = True
 def signal_handler(sig, frame):
@@ -93,22 +86,6 @@ def send_pulse_command(num_pulses, frequency):
     print(f"Sent command: {command.strip()}")  
 
 
-def trigger_star(out_io,fre,duty_cycle):
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(out_io, GPIO.OUT, initial=GPIO.LOW)
-    # pwm = GPIO.PWM(out_io, fre)	# 50Hz
-    # pwm.start(duty_cycle)	# 占空比为50%
-    # pwm.stop()
-    for i in range(NUM_IMAGES):
-        GPIO.output(out_io, GPIO.HIGH)
-        time.sleep(0.5/fre)
-        GPIO.output(out_io, GPIO.LOW)
-        time.sleep(0.5/fre)
-        print(i)
-
-    print("pulse is over ")
-    GPIO.cleanup()
-    return 0
 
 class event():
     def __init__(self,num,path):
@@ -205,12 +182,12 @@ class event():
         self.ieventstream.stop_log_raw_data()
         print("event stop recording")
         return 0
-    # def stop_recording(self):
-    #     self.ieventstream.stop_log_raw_data()
-    #     print("event stop recording")
-    #     del self.device
-
-    #     return 0
+    
+    def stop_recording(self):
+        # 停止录制
+        self.ieventstream.stop_log_raw_data()
+        print("event stop recording")
+        return 0
     
 
 def ensure_dir(s):
@@ -248,6 +225,7 @@ def print_device_info(nodemap):
 
     except PySpin.SpinnakerException as ex:
         print('Error: %s' % ex)
+        print("报错")
         return False
 
     return result
@@ -257,6 +235,20 @@ def config_camera(nodemap):
     print("\n---------- CONFIG CAMERA ----------\n")
     try:
         result = True
+        """------------------- 设置图像格式--------------------"""
+        node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+        if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
+            node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
+            if PySpin.IsReadable(node_pixel_format_BayerRG8):
+                pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
+                node_pixel_format.SetIntValue(pixel_format_BayerRG8)
+                print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
+            else:
+                print('Pixel format BayerRG8 8 not readable...')
+
+        else:
+            print('Pixel format not readable or writable...')
+
         """ -------------------- 设置ROI -------------------- """
         node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
         if not PySpin.IsAvailable(node_width) or not PySpin.IsWritable(node_width):
@@ -334,20 +326,10 @@ def config_camera(nodemap):
                 return False
             # Set exposure time to 10000 us
             node_exposure_time.SetValue(EXPOSURE_TIME)
-
-        """ -------------------- 设置帧率 -------------------- """
-        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
-        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
-            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
-            return False
-        node_framerate_enable.SetValue(True)
-            
-        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
-        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
-            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
-            return False
-        node_acquisition_framerate.SetValue(FRAMERATE)
-   
+            print(f"exposure time is {node_exposure_time.GetValue()} us")
+        # 显示曝光时间
+        
+#    
         """ -------------------- 设置增益 -------------------- """
         # Turn off auto gain
         node_gain_auto = PySpin.CEnumerationPtr(nodemap.GetNode('GainAuto'))
@@ -457,6 +439,19 @@ def config_camera(nodemap):
         node_acquisition_mode.SetIntValue(PySpin.AcquisitionMode_Continuous)
 
 
+        """ -------------------- 设置帧率 -------------------- """
+        node_framerate_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
+        if not PySpin.IsAvailable(node_framerate_enable) or not PySpin.IsWritable(node_framerate_enable):
+            print('\nUnable to enable Framerate (boolean retrieval). Aborting...\n')
+            return False
+        node_framerate_enable.SetValue(True)
+            
+        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
+        if not PySpin.IsReadable(node_acquisition_framerate) or not PySpin.IsWritable(node_acquisition_framerate):
+            print('\nUnable to set Framerate (float retrieval). Aborting...\n')
+            return False
+        node_acquisition_framerate.SetValue(FRAMERATE)
+        
         """ -------------------- 设置数据块 -------------------- """
         chunk_mode_active = PySpin.CBooleanPtr(nodemap.GetNode('ChunkModeActive'))
         if not PySpin.IsWritable(chunk_mode_active):
@@ -520,14 +515,6 @@ def disable_chunk_data(nodemap):
             print('Unable to retrieve chunk selector. Aborting...\n')
             return False
 
-        # Retrieve entries
-        #
-        # *** NOTES ***
-        # PySpin handles mass entry retrieval in a different way than the C++
-        # API. Instead of taking in a NodeList_t reference, GetEntries() takes
-        # no parameters and gives us a list of INodes. Since we want these INodes
-        # to be of type CEnumEntryPtr, we can use a list comprehension to
-        # transform all of our collected INodes into CEnumEntryPtrs at once.
         entries = [PySpin.CEnumEntryPtr(chunk_selector_entry) for chunk_selector_entry in chunk_selector.GetEntries()]
 
         print('Disabling entries...')
@@ -653,268 +640,64 @@ def read_chunk_data(image):
         result = False
     return result, exposure_time, timestamp
 
-def acquire_images(cam, nodemap,path,mode):
-    """
-    This function acquires and saves 10 images from a device.
-    Please see Acquisition example for more in-depth comments on acquiring images.
 
-    :param cam: Camera to acquire images from.
-    :param nodemap: Device nodemap.
-    :type cam: CameraPtr
-    :type nodemap: INodeMap
-    :return: True if successful, False otherwise.
-    :rtype: bool
-    """
 
+def acquire_images(cam, nodemap, path, mode):
     print('*** IMAGE ACQUISITION ***\n')
     try:
-        result = True
-
-
-
-        # Create ImageProcessor instance for post processing images
+        # 预分配内存
+        images = np.empty((NUM_IMAGES, HEIGHT, WIDTH, 3), dtype=np.uint8)
+        timestamps = np.zeros(NUM_IMAGES, dtype=np.uint64)
+        exposure_times = np.zeros(NUM_IMAGES, dtype=float)
+        
+        # 创建图像处理器
         processor = PySpin.ImageProcessor()
-        
-        # Set default image processor color processing method
-        #
-        # *** NOTES ***
-        # By default, if no specific color processing algorithm is set, the image
-        # processor will default to NEAREST_NEIGHBOR method.
         processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
-
-
-        if mode:
-            pass
-        else:
-            pass
         
-        images = list()
-        timestamps = list()
-        exposure_times = list()
-        global acquisition_flag
         global running
-
         for i in range(NUM_IMAGES):
+            if not running:
+                break
             try:
-                # Retrieve next received image and ensure image completion
-                # By default, GetNextImage will block indefinitely until an image arrives.
-                # In this example, the timeout value is set to [exposure time + 1000]ms to ensure that an image has enough time to arrive under normal conditions
                 image_result = cam.GetNextImage()
-                if not running:
-                    image_result.Release()
-                    break
-                    
-
+                
                 if image_result.IsIncomplete():
-                    print('Image incomplete with image status %d...' % image_result.GetImageStatus())
-                    # we need to release the image
+                    print(f'Image incomplete with status {image_result.GetImageStatus()}')
                     image_result.Release()
                     continue
-
-                else:
-                    # Print image information
-                    width = image_result.GetWidth()
-                    height = image_result.GetHeight()
-                    print('Grabbed Image %d, width = %d, height = %d' % (i, width, height))
-                    # Read chunk data
-                    result, exposure_time, timestamp = read_chunk_data(image_result)
-                    exposure_times.append(exposure_time)
-                    timestamps.append(timestamp)
-                    
-                    # Convert image to RGB8
-                    images.append(processor.Convert(image_result, PySpin.PixelFormat_RGB8).GetNDArray())
-                    
-                    
-                # Release image
+                
+                # 直接获取图像数据并转换
+                converted = processor.Convert(image_result, PySpin.PixelFormat_RGB8)
+                images[i] = converted.GetNDArray()
+                
+                # 读取时间戳等信息
+                _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
+                
                 image_result.Release()
-
+                
             except PySpin.SpinnakerException as ex:
-                print('Error: %s' % ex)
+                print(f'Error: {ex}')
                 return False
         
-        # End acquisition
-        print(f'we acquiring {len(images)} images')
+        # 结束采集
         cam.EndAcquisition()
-
-
         global acquisition_flag
-        print("flag is ",acquisition_flag )
         acquisition_flag = 1
-
-        print('start saving images...')
-        et_txt = open(os.path.join(path, 'exposure_times.txt'), 'w')
-        ts_txt = open(os.path.join(path, 'timestamps.txt'), 'w')
-        for i in range(len(images)):
-            et_txt.write('%s\n' % exposure_times[i])
-            ts_txt.write('%s\n' % timestamps[i])
-            filename = os.path.join(path, str(i).rjust(5, '0') + ".png")
-            # images[i].Save(filename)
+        
+        for i in range(NUM_IMAGES):  
+            filename = os.path.join(path, f"{i:05d}.png")
             cv.imwrite(filename, images[i])
-        # 丢弃第一张图片
-        print(f'total {len(images)} images')
-        images[:] = images[1:] 
-        print(f'after discarding first image, we have {len(images)} images')
-        # images = np.array(images)
-        # filename = os.path.join(path, 'image')
-        # np.save(filename,images)
-        et_txt.close()
-        ts_txt.close()
-        print('end saving images...')
+
+        # 保存时间戳和曝光时间
+        np.savetxt(os.path.join(path, 'exposure_times.txt'), exposure_times)
+        np.savetxt(os.path.join(path, 'timestamps.txt'), timestamps)
+        
+        return True
+        
     except PySpin.SpinnakerException as ex:
-        print('Error: %s' % ex)
-        result = False
-
-    # return result, images, exposure_times, timestamps
-    return 0
-
-
-def save_images(images, exposure_times, timestamps, path):
-    print('start saving images...')
-    et_txt = open(os.path.join(path, 'exposure_times.txt'), 'w')
-    ts_txt = open(os.path.join(path, 'timestamps.txt'), 'w')
-    for i in range(len(images)):
-        et_txt.write('%s\n' % exposure_times[i])
-        ts_txt.write('%s\n' % timestamps[i])
-        # filename = os.path.join(path, str(i).rjust(5, '0') + ".png")
-        # images[i].Save(filename)
-    # 丢弃第一张图片
-    print(f'total {len(images)} images')
-    images[:] = images[1:] 
-    print(f'after discarding first image, we have {len(images)} images')
-    index = len(images)//2
-    filename = os.path.join(path, 'image_center.png')
-    cv.imwrite(filename, images[index])
-    images = np.array(images)
-    filename = os.path.join(path, 'image')
-    np.save(filename,images)
-    et_txt.close()
-    ts_txt.close()
-    print('end saving images...')
-    return True 
-
-def save_list_to_avi(nodemap, nodemap_tldevice, images,path):
-    """
-    This function prepares, saves, and cleans up an AVI video from a vector of images.
-
-    :param nodemap: Device nodemap.
-    :param nodemap_tldevice: Transport layer device nodemap.
-    :param images: List of images to save to an AVI video.
-    :type nodemap: INodeMap
-    :type nodemap_tldevice: INodeMap
-    :type images: list of ImagePtr
-    :return: True if successful, False otherwise.
-    :rtype: bool
-    """
-    print('*** CREATING VIDEO ***')
-
-    try:
-        result = True
-
-        # Retrieve device serial number for filename
-        device_serial_number = ''
-        node_serial = PySpin.CStringPtr(nodemap_tldevice.GetNode('DeviceSerialNumber'))
-
-        if PySpin.IsReadable(node_serial):
-            device_serial_number = node_serial.GetValue()
-            print('Device serial number retrieved as %s...' % device_serial_number)
-
-        # Get the current frame rate; acquisition frame rate recorded in hertz
-        #
-        # *** NOTES ***
-        # The video frame rate can be set to anything; however, in order to
-        # have videos play in real-time, the acquisition frame rate can be
-        # retrieved from the camera.
-
-        node_acquisition_framerate = PySpin.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate'))
-
-        if not PySpin.IsReadable(node_acquisition_framerate):
-            print('Unable to retrieve frame rate. Aborting...')
-            return False
-
-        framerate_to_set = node_acquisition_framerate.GetValue()
-
-        print('Frame rate to be set to %.2f...' % framerate_to_set)
-
-        # Select option and open AVI filetype with unique filename
-        #
-        # *** NOTES ***
-        # Depending on the filetype, a number of settings need to be set in
-        # an object called an option. An uncompressed option only needs to
-        # have the video frame rate set whereas videos with MJPG or H264
-        # compressions should have more values set.
-        #
-        # Once the desired option object is configured, open the AVI file
-        # with the option in order to create the image file.
-        #
-        # Note that the filename does not need to be appended to the
-        # name of the file. This is because the AVI recorder object takes care
-        # of the file extension automatically.
-        #
-        # *** LATER ***
-        # Once all images have been added, it is important to close the file -
-        # this is similar to many other standard file streams.
-
-        avi_recorder = PySpin.SpinVideo()
-
-        if chosenAviType == AviType.UNCOMPRESSED:
-            avi_filename = os.path.join(path, 'SaveToAvi-UNCOMPRESSED')
-
-            option = PySpin.AVIOption()
-            option.frameRate = framerate_to_set
-            option.height = images[0].GetHeight()
-            option.width = images[0].GetWidth()
-
-        elif chosenAviType == AviType.MJPG:
-            avi_filename = os.path.join(path, 'SaveToAvi-MJPG')
-
-            option = PySpin.MJPGOption()
-            option.frameRate = framerate_to_set
-            option.quality = 75
-            option.height = images[0].GetHeight()
-            option.width = images[0].GetWidth()
-
-        elif chosenAviType == AviType.H264:
-            avi_filename = os.path.join(path, 'SaveToAvi-H264')
-
-            option = PySpin.H264Option()
-            option.frameRate = framerate_to_set
-            option.bitrate = 1000000
-            option.height = images[0].GetHeight()
-            option.width = images[0].GetWidth()
-
-        else:
-            print('Error: Unknown AviType. Aborting...')
-            return False
-
-        avi_recorder.Open(avi_filename, option)
-
-        # Construct and save AVI video
-        #
-        # *** NOTES ***
-        # Although the video file has been opened, images must be individually
-        # appended in order to construct the video.
-        print('Appending %d images to AVI file: %s.avi...' % (len(images), avi_filename))
-
-        for i in range(len(images)):
-            avi_recorder.Append(images[i])
-            print('Appended image %d...' % i)
-
-        # Close AVI file
-        #
-        # *** NOTES ***
-        # Once all images have been appended, it is important to close the
-        # AVI file. Notice that once an AVI file has been closed, no more
-        # images can be added.
-
-        avi_recorder.Close()
-        print('Video saved at %s.avi' % avi_filename)
-
-    except PySpin.SpinnakerException as ex:
-        print('Error: %s' % ex)
+        print(f'Error: {ex}')
         return False
-
-    return result
-
+    
 
 
 def main():
@@ -970,31 +753,28 @@ def main():
     ## config prophesee camera
     path = os.path.abspath(os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
     ensure_dir(path) 
-    prophesee_cam = event(0,path)
-    prophesee_cam.config_prophesee()
+    # prophesee_cam = event(0,path)
+    # prophesee_cam.config_prophesee()
     # Run example on each camera
     for i, cam in enumerate(cam_list):
 
         print('Running example for camera %d...' % i)
         try:
             result = True
-
             # Retrieve TL device nodemap and print device information
             nodemap_tldevice = cam.GetTLDeviceNodeMap()
-
             result &= print_device_info(nodemap_tldevice)
-
+            print("init——camera")
             # Initialize camera
             cam.Init()
-            print("init")
             # Retrieve GenICam nodemap
             nodemap = cam.GetNodeMap()
-
             # Configure camera
             if config_camera(nodemap) is False:
                 cam.DeInit()
                 cam_list.Clear()
                 system.ReleaseInstance() 
+                print("config camera is wrong")
                 return False
             # acquire images  flag 
             global acquisition_flag
@@ -1004,13 +784,12 @@ def main():
             cam.BeginAcquisition()
             # 多线程配置 
             print("线程开始")
-            prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
+            # prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
             global Save_mode
             flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
-            # # pwm generate
-            # trigger_thread =Thread(target=trigger_star,args=(trigger_io,frequency,duty_cycle))
+
             #多线程启动
-            prophesee_thread.start()
+            # prophesee_thread.start()
             flir_thread.start()
             # trigger_thread.start()
             ##-------------  发送指令  --------—--------##
@@ -1021,45 +800,32 @@ def main():
             ser.close()
 
             ##-----------------------------------------##
-            # trigger_thread.join()
-            prophesee_thread.join()
+            # prophesee_thread.join()
             flir_thread.join()
             # 将存放都放在了 acquire 函数里
-            try : 
-                acquisition_flag = 0 # 结束了采集
-                prophesee_cam.prophesee_tirgger_found()
-            except :
-                print("save is wrong")
-    
-            # result &= save_list_to_avi(nodemap, nodemap_tldevice, images,path)
+            # try : 
+            #     acquisition_flag = 0 # 结束了采集
+            #     prophesee_cam.prophesee_tirgger_found()
+            # except :
+            #     print("save is wrong")
             # Disable chunk data
             result &= disable_chunk_data(nodemap)
-            
+        
             # Reset trigger
             result &= reset_trigger(nodemap)
             
             # Deinitialize camera
+            print("deinit camera")
             cam.DeInit()
 
         except PySpin.SpinnakerException as ex:
             print('Error: %s' % ex)
             result = False
-
-
-
-        print('Camera %d example complete... \n' % i)
-
-    # Release reference to camera
-    # NOTE: Unlike the C++ examples, we cannot rely on pointer objects being automatically
-    # cleaned up when going out of scope.
-    # The usage of del is preferred to assigning the variable to None.
-    # Clear camera list before releasing system
+            cam.DeInit()
+    print("clear camera")
     cam_list.Clear()
     del cam
-    # Release system instance
     system.ReleaseInstance()
-
-    # input('Done! Press Enter to exit...')
     return result
 
 
