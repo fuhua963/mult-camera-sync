@@ -25,14 +25,14 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 
 # 全局变量设置
-NUM_IMAGES = 5+1  # number of images to save
+NUM_IMAGES = 10+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
 FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
 Auto_Exposure = False   #自动曝光设置
-EX_Trigger = False      #触发方式设置
+EX_Trigger = True      #触发方式设置
 Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
