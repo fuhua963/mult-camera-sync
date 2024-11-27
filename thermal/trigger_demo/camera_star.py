@@ -123,7 +123,7 @@ class CameraStar:
             
         # 使用配置文件中的参数
         count = count or CAPTURE_COUNT
-        time.sleep(0.1)
+        time.sleep(1)
         
         # 清空并重新分配帧缓存
         self.frame_buffer.clear()
