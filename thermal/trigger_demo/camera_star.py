@@ -107,6 +107,7 @@ class CameraStar:
             gray_array = ((gray_array - gray_array.min()) * (255.0 / (gray_array.max() - gray_array.min()))).astype(np.uint8)
             gray_img = Image.fromarray(gray_array)
             gray_img.save(gray_path)
+            print(f"灰度图已保存至: {gray_path}")
             
             # 转换为RGB图并保存
             sdk_gray2rgb(byref(self.gray), byref(self.rgb), self.imgsize[1], self.imgsize[0], 0, 1)
