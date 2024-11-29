@@ -31,7 +31,7 @@ NUM_IMAGES = 50+1  # number of images to save
 ## flir camera set
 FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
-BALANCE_WHITE = 0.5   # 白平衡 0-4
+BALANCE_WHITE = 0.5
 Auto_Exposure = True   #自动曝光设置
 EX_Trigger = True      #触发方式设置
 Save_mode = True  ## 单张存false npy存 true
