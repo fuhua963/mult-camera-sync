@@ -605,6 +605,17 @@ def reset_trigger(nodemap):
 
         node_trigger_mode.SetIntValue(node_trigger_mode_off.GetValue())
 
+        node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+        if not PySpin.IsReadable(node_trigger_source) or not PySpin.IsWritable(node_trigger_source):
+            print('Unable to get trigger source (node retrieval). Aborting...')
+            return False
+        node_trigger_source_software = node_trigger_source.GetEntryByName('Software')
+        if not PySpin.IsReadable(node_trigger_source_software):
+            print('Unable to get trigger source (enum entry retrieval). Aborting...')
+            return False
+        node_trigger_source.SetIntValue(node_trigger_source_software.GetValue())
+        print('Trigger source set to software...')
+
         print('Trigger mode disabled...')
 
     except PySpin.SpinnakerException as ex:
