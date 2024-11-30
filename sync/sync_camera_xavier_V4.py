@@ -31,7 +31,7 @@ NUM_IMAGES = 3+1  # number of images to save
 ## flir camera set
 FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
-BALANCE_WHITE = 0.5
+BALANCE_WHITE = 1.6
 Auto_Exposure = False   #自动曝光设置
 EX_Trigger = False      #触发方式设置
 expose_time = EXPOSURE_TIME #us
@@ -347,7 +347,7 @@ def config_camera(nodemap):
         node_gain_auto.SetIntValue(gain_auto_off)
         
         """ -------------------- 设置白平衡 -------------------- """
-        # Turn on auto balance white
+        # Turn off auto balance white
         node_balance_white_auto = PySpin.CEnumerationPtr(nodemap.GetNode('BalanceWhiteAuto'))
         if not PySpin.IsReadable(node_balance_white_auto) or not PySpin.IsWritable(node_balance_white_auto):
             print('\nUnable to set Balance White Auto (enumeration retrieval). Aborting...\n')
@@ -369,11 +369,19 @@ def config_camera(nodemap):
         # node_balance_white_auto.SetIntValue(balance_white_auto_on)
 
         # 设置白平衡值 0-4
-        # node_balance_white = PySpin.CFloatPtr(nodemap.GetNode('BalanceRatio'))
-        # if not PySpin.IsReadable(node_balance_white) or not PySpin.IsWritable(node_balance_white):
-        #     print('\nUnable to set Balance Ratio (float retrieval). Aborting...\n')
-        #     return False
-        # node_balance_white.SetValue(BALANCE_WHITE)
+        # node_balance_selector = PySpin.CEnumerationPtr(nodemap.GetNode('BalanceRatioSelector'))
+        # if PySpin.IsReadable(node_balance_selector) and PySpin.IsWritable(node_balance_selector):
+        #     # 选择Red通道
+        #     entry_balance_red = node_balance_selector.GetEntryByName('Red')
+        #     if PySpin.IsReadable(entry_balance_red):
+        #         node_balance_selector.SetIntValue(entry_balance_red.GetValue())
+                
+        #         # 设置Red通道的白平衡比率
+        #         node_balance_ratio = PySpin.CFloatPtr(nodemap.GetNode('BalanceRatio'))
+        #         if PySpin.IsReadable(node_balance_ratio) and PySpin.IsWritable(node_balance_ratio):
+        #             node_balance_ratio.SetValue(float(BALANCE_WHITE))
+        # else:
+        #     print('\nUnable to set Balance Ratio Selector. Skipping white balance settings...\n')
         
         """ -------------------- 设置吞吐量 -------------------- """
         node_device_link_throughput_limit = PySpin.CIntegerPtr(nodemap.GetNode('DeviceLinkThroughputLimit'))
@@ -687,20 +695,20 @@ def acquire_images(cam, nodemap, path):
     print('*** IMAGE ACQUISITION ***\n')
     try:
         # 预分配内存
-        images = np.empty((NUM_IMAGES, HEIGHT, WIDTH,3), dtype=np.uint8)
+        images = np.empty((NUM_IMAGES, HEIGHT, WIDTH), dtype=np.uint8)
         timestamps = np.zeros(NUM_IMAGES, dtype=np.uint64)
         exposure_times = np.zeros(NUM_IMAGES, dtype=float)
         
         # 创建图像处理器
-        processor = PySpin.ImageProcessor()
-        processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
+        # processor = PySpin.ImageProcessor()
+        # processor.SetColorProcessing(PySpin.SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR)
         
         global running
         for i in range(NUM_IMAGES):
             if not running:
                 break
             try:
-                image_result = cam.GetNextImage()
+                image_result = cam.GetNextImage(1000)
                 
                 if image_result.IsIncomplete():
                     print(f'Image incomplete with status {image_result.GetImageStatus()}')
@@ -708,8 +716,9 @@ def acquire_images(cam, nodemap, path):
                     continue
                 
                 # 直接获取图像数据并转换
-                converted = processor.Convert(image_result, PySpin.PixelFormat_RGB8)
-                images[i] = converted.GetNDArray()
+                # converted = processor.Convert(image_result, PySpin.PixelFormat_RGB8)
+                #这里需要保存原始的RG8数据，raw文件
+                images[i] = image_result.GetNDArray()
                 
                 # 读取时间戳等信息
                 _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
@@ -724,10 +733,14 @@ def acquire_images(cam, nodemap, path):
         cam.EndAcquisition()
         global acquisition_flag
         acquisition_flag = 1
-        
-        for i in range(NUM_IMAGES):  
-            filename = os.path.join(path, f"{i:05d}.png")
-            cv.imwrite(filename, images[i])
+        for i, img_data in enumerate(images):
+            filename = os.path.join(path, f"{i:05d}.raw")
+            with open(filename, 'wb') as f:
+                # 写入ROI信息
+                f.write(np.array([OFFSET_X, OFFSET_Y, WIDTH, HEIGHT], dtype=np.int32).tobytes())
+                # 写入图像数据
+                f.write(img_data.tobytes())
+
 
         # 保存时间戳和曝光时间
         np.savetxt(os.path.join(path, 'exposure_times.txt'), exposure_times)
@@ -806,7 +819,7 @@ def main():
             # Retrieve TL device nodemap and print device information
             nodemap_tldevice = cam.GetTLDeviceNodeMap()
 
-            result &= print_device_info(nodemap_tldevice)
+            # result &= print_device_info(nodemap_tldevice)
 
             # Initialize camera
             cam.Init()
@@ -835,7 +848,6 @@ def main():
             #多线程启动
             prophesee_thread.start()
             flir_thread.start()
-            # trigger_thread.start()
             ##-------------  发送指令  --------—--------##
 
             # 示例：发送产生NUM_IMAGES个频率为FRAMERATE Hz脉冲的指令  
@@ -857,6 +869,7 @@ def main():
         
             # Reset trigger
             result &= reset_trigger(nodemap)
+
             
             # Deinitialize camera
             cam.DeInit()
