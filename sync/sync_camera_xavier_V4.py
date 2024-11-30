@@ -25,15 +25,15 @@ from metavision_core.event_io.raw_reader import initiate_device
 
 
 # 全局变量设置
-NUM_IMAGES = 5+1  # number of images to save
+NUM_IMAGES = 3+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
 FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
+BALANCE_WHITE = 0.5
 Auto_Exposure = False   #自动曝光设置
 EX_Trigger = False      #触发方式设置
-Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
 duty_cycle = 50 # 设置占空比为50
@@ -237,16 +237,14 @@ def config_camera(nodemap):
         result = True
         """------------------- 设置图像格式--------------------"""
         node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+        # 读出格式并print
+        print(node_pixel_format.GetCurrentEntry().GetSymbolic())
+
         if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
             node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
             if PySpin.IsReadable(node_pixel_format_BayerRG8):
-                # Retrieve the integer value from the entry node
                 pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
-
-                # Set integer as new value for enumeration node
                 node_pixel_format.SetIntValue(pixel_format_BayerRG8)
-
-                print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
 
             else:
                 print('Pixel format BayerRG8 8 not readable...')
@@ -349,17 +347,33 @@ def config_camera(nodemap):
         node_gain_auto.SetIntValue(gain_auto_off)
         
         """ -------------------- 设置白平衡 -------------------- """
-        # Turn off auto balance white
+        # Turn on auto balance white
         node_balance_white_auto = PySpin.CEnumerationPtr(nodemap.GetNode('BalanceWhiteAuto'))
         if not PySpin.IsReadable(node_balance_white_auto) or not PySpin.IsWritable(node_balance_white_auto):
             print('\nUnable to set Balance White Auto (enumeration retrieval). Aborting...\n')
             return False
+
         entry_balance_white_auto_off = node_balance_white_auto.GetEntryByName('Off')
         if not PySpin.IsReadable(entry_balance_white_auto_off):
             print('\nUnable to set Balance White Auto (entry retrieval). Aborting...\n')
             return False
         balance_white_auto_off = entry_balance_white_auto_off.GetValue()
         node_balance_white_auto.SetIntValue(balance_white_auto_off)
+
+            
+        # entry_balance_white_auto_on = node_balance_white_auto.GetEntryByName('Continuous')
+        # if not PySpin.IsReadable(entry_balance_white_auto_on):
+        #     print('\nUnable to set Balance White Auto (entry retrieval). Aborting...\n')
+        #     return False
+        # balance_white_auto_on = entry_balance_white_auto_on.GetValue()
+        # node_balance_white_auto.SetIntValue(balance_white_auto_on)
+
+        # 设置白平衡值 0-4
+        # node_balance_white = PySpin.CFloatPtr(nodemap.GetNode('BalanceRatio'))
+        # if not PySpin.IsReadable(node_balance_white) or not PySpin.IsWritable(node_balance_white):
+        #     print('\nUnable to set Balance Ratio (float retrieval). Aborting...\n')
+        #     return False
+        # node_balance_white.SetValue(BALANCE_WHITE)
         
         """ -------------------- 设置吞吐量 -------------------- """
         node_device_link_throughput_limit = PySpin.CIntegerPtr(nodemap.GetNode('DeviceLinkThroughputLimit'))
@@ -445,11 +459,6 @@ def config_camera(nodemap):
                 return False
             node_trigger_source.SetIntValue(node_trigger_source_software.GetValue())
             print('Trigger source set to software...')
-
-
-
-    
-
 
         """-----------------------设置捕获方式-------------------"""
         # Set acquisition mode to continuous
@@ -607,9 +616,6 @@ def reset_trigger(nodemap):
 
         print('Trigger mode disabled...')
 
-
-
-
         node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
         if not PySpin.IsReadable(node_trigger_source) or not PySpin.IsWritable(node_trigger_source):
             print('Unable to get trigger source (node retrieval). Aborting...')
@@ -620,7 +626,6 @@ def reset_trigger(nodemap):
             return False
         node_trigger_source.SetIntValue(node_trigger_source_software.GetValue())
         print('Trigger source set to software...')
-        
 
     except PySpin.SpinnakerException as ex:
         print('Error: %s' % ex)
@@ -678,11 +683,11 @@ def read_chunk_data(image):
 
 
 
-def acquire_images(cam, nodemap, path, mode):
+def acquire_images(cam, nodemap, path):
     print('*** IMAGE ACQUISITION ***\n')
     try:
         # 预分配内存
-        images = np.empty((NUM_IMAGES, HEIGHT, WIDTH, 3), dtype=np.uint8)
+        images = np.empty((NUM_IMAGES, HEIGHT, WIDTH,3), dtype=np.uint8)
         timestamps = np.zeros(NUM_IMAGES, dtype=np.uint64)
         exposure_times = np.zeros(NUM_IMAGES, dtype=float)
         
@@ -708,7 +713,7 @@ def acquire_images(cam, nodemap, path, mode):
                 
                 # 读取时间戳等信息
                 _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
-                
+                # print(f"exposure time is {exposure_times[i]} us")
                 image_result.Release()
                 
             except PySpin.SpinnakerException as ex:
@@ -824,8 +829,8 @@ def main():
             # 多线程配置 
             print("线程开始")
             prophesee_thread = Thread(target=prophesee_cam.start_recording,args=()) 
-            global Save_mode
-            flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path,Save_mode))
+
+            flir_thread = Thread(target=acquire_images,args=(cam,nodemap,path))
 
             #多线程启动
             prophesee_thread.start()

@@ -11,9 +11,6 @@ import numpy as np
 import queue
 import signal
 import cv2 as cv
-sys.path.append("/home/nvidia/openeb/sdk/modules/core/python/pypkg")
-sys.path.append("/home/nvidia/openeb/build/py3")
-#逐行输出sys.path内容
 
 
 
@@ -26,7 +23,6 @@ FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
 Auto_Exposure = False   #自动曝光设置
 EX_Trigger = False      #触发方式设置
-Save_mode = True  ## 单张存false npy存 true
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
 duty_cycle = 50 # 设置占空比为50
@@ -47,48 +43,21 @@ def ensure_dir(s):
         os.makedirs(s)
 
 
-def print_device_info(nodemap):
-
-
-    print('*** DEVICE INFORMATION ***\n')
-    try:
-        result = True
-        node_device_information = PySpin.CCategoryPtr(nodemap.GetNode('DeviceInformation'))
-
-        if PySpin.IsReadable(node_device_information):
-            features = node_device_information.GetFeatures()
-            for feature in features:
-                node_feature = PySpin.CValuePtr(feature)
-                print('%s: %s' % (node_feature.GetName(),
-                                  node_feature.ToString() if PySpin.IsReadable(node_feature) else 'Node not readable'))
-
-        else:
-            print('Device control information not readable.')
-
-    except PySpin.SpinnakerException as ex:
-        print('Error: %s' % ex)
-        return False
-
-    return result
-
 
 def config_camera(nodemap):
     print("\n---------- CONFIG CAMERA ----------\n")
     try:
         result = True
-        '''
-        """------------------- 设置图像格式--------------------"""
+        # """------------------- 设置图像格式--------------------"""
         node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+        # 读出格式并print
+        print(node_pixel_format.GetCurrentEntry().GetSymbolic())
+
         if PySpin.IsAvailable(node_pixel_format) and PySpin.IsWritable(node_pixel_format):
             node_pixel_format_BayerRG8 = PySpin.CEnumEntryPtr(node_pixel_format.GetEntryByName('BayerRG8'))
             if PySpin.IsReadable(node_pixel_format_BayerRG8):
-                # Retrieve the integer value from the entry node
                 pixel_format_BayerRG8 = node_pixel_format_BayerRG8.GetValue()
-
-                # Set integer as new value for enumeration node
                 node_pixel_format.SetIntValue(pixel_format_BayerRG8)
-
-                print('Pixel format set to %s...' % node_pixel_format.GetCurrentEntry().GetSymbolic())
 
             else:
                 print('Pixel format BayerRG8 8 not readable...')
@@ -202,6 +171,21 @@ def config_camera(nodemap):
             return False
         balance_white_auto_off = entry_balance_white_auto_off.GetValue()
         node_balance_white_auto.SetIntValue(balance_white_auto_off)
+
+            
+        # entry_balance_white_auto_on = node_balance_white_auto.GetEntryByName('Continuous')
+        # if not PySpin.IsReadable(entry_balance_white_auto_on):
+        #     print('\nUnable to set Balance White Auto (entry retrieval). Aborting...\n')
+        #     return False
+        # balance_white_auto_on = entry_balance_white_auto_on.GetValue()
+        # node_balance_white_auto.SetIntValue(balance_white_auto_on)
+
+        # # 设置白平衡值 0-4
+        # node_balance_white = PySpin.CFloatPtr(nodemap.GetNode('BalanceRatio'))
+        # if not PySpin.IsReadable(node_balance_white) or not PySpin.IsWritable(node_balance_white):
+        #     print('\nUnable to set Balance Ratio (float retrieval). Aborting...\n')
+        #     return False
+        # node_balance_white.SetValue(0.5)
         
         """ -------------------- 设置吞吐量 -------------------- """
         node_device_link_throughput_limit = PySpin.CIntegerPtr(nodemap.GetNode('DeviceLinkThroughputLimit'))
@@ -289,7 +273,6 @@ def config_camera(nodemap):
             print('Trigger source set to software...')
 
 
-        '''
         
 
         """-----------------------设置捕获方式-------------------"""
@@ -314,43 +297,43 @@ def config_camera(nodemap):
             return False
         node_acquisition_framerate.SetValue(FRAMERATE)
         
-        # """ -------------------- 设置数据块 -------------------- """
-        # chunk_mode_active = PySpin.CBooleanPtr(nodemap.GetNode('ChunkModeActive'))
-        # if not PySpin.IsWritable(chunk_mode_active):
-        #     print('\nUnable to activate Chunk Mode (boolean retrieval). Aborting...\n')
-        #     return False
-        # chunk_mode_active.SetValue(True)
+        """ -------------------- 设置数据块 -------------------- """
+        chunk_mode_active = PySpin.CBooleanPtr(nodemap.GetNode('ChunkModeActive'))
+        if not PySpin.IsWritable(chunk_mode_active):
+            print('\nUnable to activate Chunk Mode (boolean retrieval). Aborting...\n')
+            return False
+        chunk_mode_active.SetValue(True)
         
-        # chunk_selector = PySpin.CEnumerationPtr(nodemap.GetNode('ChunkSelector'))
-        # if not PySpin.IsReadable(chunk_selector) or not PySpin.IsWritable(chunk_selector):
-        #     print('\nUnable to retrieve Chunk Selector (enumeration retrieval). Aborting...\n')
-        #     return False
-        # entries = [PySpin.CEnumEntryPtr(chunk_selector_entry) for chunk_selector_entry in chunk_selector.GetEntries()]
+        chunk_selector = PySpin.CEnumerationPtr(nodemap.GetNode('ChunkSelector'))
+        if not PySpin.IsReadable(chunk_selector) or not PySpin.IsWritable(chunk_selector):
+            print('\nUnable to retrieve Chunk Selector (enumeration retrieval). Aborting...\n')
+            return False
+        entries = [PySpin.CEnumEntryPtr(chunk_selector_entry) for chunk_selector_entry in chunk_selector.GetEntries()]
         
-        # print('Enabling entries...')
-        # # Iterate through our list and select each entry node to enable
-        # for chunk_selector_entry in entries:
-        #     # Go to next node if problem occurs
-        #     if not PySpin.IsReadable(chunk_selector_entry):
-        #         continue
+        print('Enabling entries...')
+        # Iterate through our list and select each entry node to enable
+        for chunk_selector_entry in entries:
+            # Go to next node if problem occurs
+            if not PySpin.IsReadable(chunk_selector_entry):
+                continue
 
-        #     chunk_selector.SetIntValue(chunk_selector_entry.GetValue())
-        #     chunk_str = '\t {}:'.format(chunk_selector_entry.GetSymbolic())
+            chunk_selector.SetIntValue(chunk_selector_entry.GetValue())
+            chunk_str = '\t {}:'.format(chunk_selector_entry.GetSymbolic())
 
-        #     # Retrieve corresponding boolean
-        #     chunk_enable = PySpin.CBooleanPtr(nodemap.GetNode('ChunkEnable'))
+            # Retrieve corresponding boolean
+            chunk_enable = PySpin.CBooleanPtr(nodemap.GetNode('ChunkEnable'))
 
-        #     # Enable the boolean, thus enabling the corresponding chunk data
-        #     if not PySpin.IsAvailable(chunk_enable):
-        #         print('{} not available'.format(chunk_str))
-        #         result = False
-        #     elif chunk_enable.GetValue() is True:
-        #         print('{} enabled'.format(chunk_str))
-        #     elif PySpin.IsWritable(chunk_enable):
-        #         chunk_enable.SetValue(True)
-        #         print('{} enabled'.format(chunk_str))
-        #     else:
-        #         print('{} not writable'.format(chunk_str))
+            # Enable the boolean, thus enabling the corresponding chunk data
+            if not PySpin.IsAvailable(chunk_enable):
+                print('{} not available'.format(chunk_str))
+                result = False
+            elif chunk_enable.GetValue() is True:
+                print('{} enabled'.format(chunk_str))
+            elif PySpin.IsWritable(chunk_enable):
+                chunk_enable.SetValue(True)
+                print('{} enabled'.format(chunk_str))
+            else:
+                print('{} not writable'.format(chunk_str))
 
     except PySpin.SpinnakerException as ex:
         print('Error: %s' % ex)
@@ -469,30 +452,6 @@ def reset_trigger(nodemap):
 
     return result
 
-def enbale_trigger(nodemap):
-    """
-    This function returns the camera to a normal state by turning on trigger mode.
-
-    :param nodemap: Transport layer device nodemap.
-    :type nodemap: INodeMap
-    :returns: True if successful, False otherwise.
-    :rtype: bool
-    """
-    try:
-        result = True
-        node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
-        if not PySpin.IsReadable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
-            print('Unable to disable trigger mode (node retrieval). Aborting...')
-            return False
-        node_trigger_mode.SetIntValue(PySpin.TriggerMode_On)
-
-        print('Trigger mode enabled...')
-
-    except PySpin.SpinnakerException as ex:
-        print('Error: %s' % ex)
-        result = False
-
-    return result
 
 
 def read_chunk_data(image):
@@ -519,7 +478,7 @@ def read_chunk_data(image):
 
 
 
-def acquire_images(cam, nodemap, path, mode):
+def acquire_images(cam, nodemap, path):
     print('*** IMAGE ACQUISITION ***\n')
     try:
         # 预分配内存
@@ -545,7 +504,7 @@ def acquire_images(cam, nodemap, path, mode):
                 images[i] = converted.GetNDArray()
                 
                 # 读取时间戳等信息
-                # _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
+                _, exposure_times[i], timestamps[i] = read_chunk_data(image_result)
                 
                 image_result.Release()
                 
@@ -560,8 +519,8 @@ def acquire_images(cam, nodemap, path, mode):
             cv.imwrite(filename, images[i])
 
         # 保存时间戳和曝光时间
-        # np.savetxt(os.path.join(path, 'exposure_times.txt'), exposure_times)
-        # np.savetxt(os.path.join(path, 'timestamps.txt'), timestamps)
+        np.savetxt(os.path.join(path, 'exposure_times.txt'), exposure_times)
+        np.savetxt(os.path.join(path, 'timestamps.txt'), timestamps)
         
         return True
         
@@ -570,16 +529,6 @@ def acquire_images(cam, nodemap, path, mode):
         return False
     
 
-def acquire_images_thread(cam, nodemap, path, mode, result_queue):
-    """
-    线程安全的图像获取函数
-    """
-    try:
-        result = acquire_images(cam, nodemap, path, mode)
-        result_queue.put(result)
-    except Exception as e:
-        print(f"采集线程发生错误: {str(e)}")
-        result_queue.put(False)
 
 def main():
 
@@ -590,12 +539,9 @@ def main():
     # Get current library version
     version = system.GetLibraryVersion()
     print('Library version: %d.%d.%d.%d' % (version.major, version.minor, version.type, version.build))
-
     # Retrieve list of cameras from the system
     cam_list = system.GetCameras()
-
     num_cameras = cam_list.GetSize()
-
     print('Number of cameras detected: %d' % num_cameras)
 
     # Finish if there are no cameras
@@ -609,59 +555,36 @@ def main():
         print('Not enough cameras!')
         # input('Done! Press Enter to exit...')
         return False
-    
-
     ## config prophesee camera
     path = os.path.abspath(os.path.join('./', time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime())))
     ensure_dir(path) 
     # Run example on each camera
     for i, cam in enumerate(cam_list):
-
         print('Running example for camera %d...' % i)
         try:
             result = True
-
             # Retrieve TL device nodemap and print device information
             nodemap_tldevice = cam.GetTLDeviceNodeMap()
-
-            result &= print_device_info(nodemap_tldevice)
-
             # Initialize camera
             cam.Init()
             print("init")
             # Retrieve GenICam nodemap
             nodemap = cam.GetNodeMap()
-
             # Configure camera
             if config_camera(nodemap) is False:
                 cam.DeInit()
                 cam_list.Clear()
                 system.ReleaseInstance() 
                 return False
-
             cam.BeginAcquisition()
-                    
-            # 使用队列来获取线程执行结果
-            result_queue = queue.Queue()
-            
             # 创建并启动采集线程
-            flir_thread = Thread(target=acquire_images_thread, 
-                            args=(cam, nodemap, path, Save_mode, result_queue))
+            flir_thread = Thread(target=acquire_images, 
+                            args=(cam, nodemap, path))
             flir_thread.start()
-            
             # 等待线程完成
             flir_thread.join()
-            
-            # 获取执行结果
-            thread_result = result_queue.get()
-            result &= thread_result
-    
             result &= disable_chunk_data(nodemap)
-        
-            # Reset trigger
             result &= reset_trigger(nodemap)
-            
-            # Deinitialize camera
             cam.DeInit()
 
         except PySpin.SpinnakerException as ex:
