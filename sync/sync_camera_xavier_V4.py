@@ -55,6 +55,7 @@ OFFSET_Y = 524
 WIDTH = 2000
 HEIGHT = 1000
 
+
 global cam_list, system 
 running = True
 def signal_handler(sig, frame):
