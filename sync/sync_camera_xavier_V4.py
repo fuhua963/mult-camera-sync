@@ -236,7 +236,7 @@ def config_camera(nodemap):
     print("\n---------- CONFIG CAMERA ----------\n")
     try:
         result = True
-        """------------------- 设置图像格式--------------------"""
+        """------------------- 设置��像格式--------------------"""
         node_pixel_format = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
         # 读出格式并print
         print(node_pixel_format.GetCurrentEntry().GetSymbolic())
@@ -734,14 +734,31 @@ def acquire_images(cam, nodemap, path):
         cam.EndAcquisition()
         global acquisition_flag
         acquisition_flag = 1
-        for i, img_data in enumerate(images):
-            filename = os.path.join(path, f"{i:05d}.raw")
-            with open(filename, 'wb') as f:
-                # 写入ROI信息
-                f.write(np.array([OFFSET_X, OFFSET_Y, WIDTH, HEIGHT], dtype=np.int32).tobytes())
-                # 写入图像数据
-                f.write(img_data.tobytes())
 
+        # 创建保存预览图片的目录
+        preview_dir = os.path.join(path, "preview_images")
+        ensure_dir(preview_dir)
+
+        # 创建单个文件存储所有图像
+        filename = os.path.join(path, "images.raw")
+        with open(filename, 'wb') as f:
+            # 写入图像数量和ROI信息作为文件头
+            header = np.array([
+                NUM_IMAGES,  # 图像数量
+                OFFSET_X, OFFSET_Y, WIDTH, HEIGHT  # ROI信息
+            ], dtype=np.int32)
+            f.write(header.tobytes())
+            
+            # 连续写入所有图像数据,并每10张保存一张预览图
+            for idx, img_data in enumerate(images):
+                f.write(img_data.tobytes())
+                
+                # 每10张图像保存一张预览图
+                if idx % 10 == 0:
+                    # 将BayerRG8格式转换为RGB
+                    rgb_image = cv.cvtColor(img_data, cv.COLOR_BayerRG2RGB)
+                    # 保存图像
+                    cv.imwrite(os.path.join(preview_dir, f'preview_{idx}.png'), cv.cvtColor(rgb_image, cv.COLOR_RGB2BGR))
 
         # 保存时间戳和曝光时间
         np.savetxt(os.path.join(path, 'exposure_times.txt'), exposure_times)
