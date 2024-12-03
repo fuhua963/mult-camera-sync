@@ -327,6 +327,78 @@ class FlirCamera:
         except PySpin.SpinnakerException as ex:
             print(f'启用数据块模式错误: {ex}')
 
+    def _disable_chunk_data(self, nodemap):
+        """禁用数据块模式
+        Args:
+            nodemap: 节点映射
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            # 获取ChunkSelector节点
+            chunk_selector = PySpin.CEnumerationPtr(nodemap.GetNode('ChunkSelector'))
+            if not PySpin.IsReadable(chunk_selector) or not PySpin.IsWritable(chunk_selector):
+                print('无法访问ChunkSelector节点')
+                return False
+
+            # 禁用所有数据块
+            entries = [PySpin.CEnumEntryPtr(chunk_selector_entry) for chunk_selector_entry in chunk_selector.GetEntries()]
+            for chunk_selector_entry in entries:
+                if not PySpin.IsReadable(chunk_selector_entry):
+                    continue
+
+                chunk_selector.SetIntValue(chunk_selector_entry.GetValue())
+                chunk_enable = PySpin.CBooleanPtr(nodemap.GetNode('ChunkEnable'))
+                
+                if PySpin.IsWritable(chunk_enable):
+                    chunk_enable.SetValue(False)
+                    print(f'已禁用数据块: {chunk_selector_entry.GetSymbolic()}')
+
+            # 关闭ChunkMode
+            chunk_mode_active = PySpin.CBooleanPtr(nodemap.GetNode('ChunkModeActive'))
+            if PySpin.IsWritable(chunk_mode_active):
+                chunk_mode_active.SetValue(False)
+                print('ChunkMode已禁用')
+
+            return True
+
+        except PySpin.SpinnakerException as ex:
+            print(f'禁用数据块模式错误: {ex}')
+            return False
+
+    def _reset_trigger(self, nodemap):
+        """重置触发模式
+        Args:
+            nodemap: 节点映射
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            # 关闭触发模式
+            node_trigger_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
+            if not PySpin.IsReadable(node_trigger_mode) or not PySpin.IsWritable(node_trigger_mode):
+                print('无法访问触发模式节点')
+                return False
+
+            node_trigger_mode_off = node_trigger_mode.GetEntryByName('Off')
+            if PySpin.IsReadable(node_trigger_mode_off):
+                node_trigger_mode.SetIntValue(node_trigger_mode_off.GetValue())
+                print('触发模式已禁用')
+
+            # 重置触发源为软件触发
+            node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+            if PySpin.IsReadable(node_trigger_source) and PySpin.IsWritable(node_trigger_source):
+                node_trigger_source_software = node_trigger_source.GetEntryByName('Software')
+                if PySpin.IsReadable(node_trigger_source_software):
+                    node_trigger_source.SetIntValue(node_trigger_source_software.GetValue())
+                    print('触发源已重置为软件触发')
+
+            return True
+
+        except PySpin.SpinnakerException as ex:
+            print(f'重置触发模式错误: {ex}')
+            return False
+
     def acquire_images(self, cam, nodemap, path):
         """采集图像
         Args:
@@ -359,6 +431,11 @@ class FlirCamera:
             ACQUISITION_FLAG = 1
 
             self._save_data(images, exposure_times, timestamps, path)
+            
+            # 添加重置
+            self._disable_chunk_data(nodemap)
+            self._reset_trigger(nodemap)
+            
             return True
             
         except PySpin.SpinnakerException as ex:
@@ -388,7 +465,21 @@ class FlirCamera:
             for idx, img_data in enumerate(images):
                 f.write(img_data.tobytes())
                 if idx % 10 == 0:
-                    rgb_image = cv.cvtColor(img_data, cv.COLOR_BayerRG2RGB)
+                    
+                    # 确保使用正确的 Bayer 模式进行转换
+                    if FLIR_OFFSET_X % 2 == 0 and FLIR_OFFSET_Y % 2 == 0:
+                        rgb_image = cv.cvtColor(img_data, cv.COLOR_BayerRG2RGB)
+                    else:
+                        # 根据偏移量选择正确的 Bayer 模式
+                        bayer_patterns = {
+                            (0, 0): cv.COLOR_BayerRG2RGB,  # RG
+                            (1, 0): cv.COLOR_BayerGR2RGB,  # GR
+                            (0, 1): cv.COLOR_BayerGB2RGB,  # GB
+                            (1, 1): cv.COLOR_BayerBG2RGB   # BG
+                        }
+                        pattern_key = (FLIR_OFFSET_X % 2, FLIR_OFFSET_Y % 2)
+                        rgb_image = cv.cvtColor(img_data, bayer_patterns[pattern_key])
+                    
                     cv.imwrite(os.path.join(preview_dir, f'preview_{idx}.png'), 
                              cv.cvtColor(rgb_image, cv.COLOR_RGB2BGR))
 
