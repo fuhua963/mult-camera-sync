@@ -27,9 +27,8 @@
 # 	udpsink host=192.168.144.50 port=8554 sync=false
 
 
-
-GST_DEBUG=2 gst-launch-1.0 -v spinnakersrc offset-x=224 offset-y=524 exposure-lower=50 exposure-upper=15000 ! \
-    video/x-raw, width=2000, height=1000, format=GRAY8, framerate=10/1 ! \
+gst-launch-1.0 spinnakersrc offset-x=324 offset-y=124 exposure-lower=50 exposure-upper=15000 ! \
+    video/x-raw, width=1800, height=1800, format=RGB, framerate=30/1 ! \
     nvvideoconvert compute-hw=1 ! \
     nvv4l2h264enc control-rate=1 maxperf-enable=true bitrate=4000000 idrinterval=30 insert-vui=true insert-sps-pps=true insert-aud=true preset-level=4 profile=4 ! video/x-h264, stream-format=byte-stream ! \
     rtph264pay ! \

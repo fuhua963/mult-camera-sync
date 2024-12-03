@@ -21,11 +21,11 @@ from metavision_core.event_io.raw_reader import RawReader
 from metavision_core.event_io import EventsIterator
 from metavision_hal import I_TriggerIn
 from metavision_core.event_io.raw_reader import initiate_device
-
+from metavision_hal import I_EventTrailFilterModule
 
 
 # 全局变量设置
-NUM_IMAGES = 3+1  # number of images to save
+NUM_IMAGES = 20+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
@@ -33,7 +33,7 @@ FRAMERATE = int(10) # fps
 EXPOSURE_TIME = 50000 # us
 BALANCE_WHITE = 1.6
 Auto_Exposure = False   #自动曝光设置
-EX_Trigger = False      #触发方式设置
+EX_Trigger = True      #触发方式设置
 expose_time = EXPOSURE_TIME #us
 frequency =int(FRAMERATE) # 设置频率
 duty_cycle = 50 # 设置占空比为50
@@ -50,10 +50,10 @@ roi_y0 = int(60)
 roi_x1 = int(939)
 roi_y1 = int(659)
 #  flir camera set
-OFFSET_X = 224
-OFFSET_Y = 524
-WIDTH = 2000
-HEIGHT = 1000
+OFFSET_X = 324
+OFFSET_Y = 124
+WIDTH = 1800
+HEIGHT = 1800
 
 
 global cam_list, system 
@@ -157,6 +157,19 @@ class event():
         Digital_Crop.set_window_region((roi_x0, roi_y0, roi_x1, roi_y1),False)
         Digital_Crop.enable(True)
         
+        # 假设 device 是已初始化的设备对象
+        event_trail_filter = self.device.get_i_event_trail_filter_module()
+        # 设置过滤类型
+        if event_trail_filter:
+            available_types = event_trail_filter.get_available_types()
+            print("Available filter types:", available_types)
+            # 设置过滤类型为 STC_CUT_TRAIL
+            event_trail_filter.set_type(I_EventTrailFilterModule.Type.STC_CUT_TRAIL)
+            # 设置阈值
+            event_trail_filter.set_threshold(100000)  # 设置阈值为100000微秒
+            # 启用过滤器
+            event_trail_filter.enable(True)
+            print("Event trail filter enabled.")
         
         return True
     def start_recording(self):
