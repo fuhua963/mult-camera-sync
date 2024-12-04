@@ -9,6 +9,7 @@ from metavision_core.event_io.raw_reader import RawReader
 from metavision_core.event_io import EventsIterator
 from metavision_hal import I_TriggerIn
 from metavision_core.event_io.raw_reader import initiate_device
+from metavision_hal import I_EventTrailFilterModule
 
 class EventCamera:
     """Prophesee事件相机控制类"""
@@ -93,6 +94,20 @@ class EventCamera:
         
         # 配置ROI
         self._config_roi()
+        
+        # 假设 device 是已初始化的设备对象
+        event_trail_filter = self.device.get_i_event_trail_filter_module()
+        # 设置过滤类型
+        if event_trail_filter:
+            available_types = event_trail_filter.get_available_types()
+            print("Available filter types:", available_types)
+            # 设置过滤类型为 STC_CUT_TRAIL
+            event_trail_filter.set_type(I_EventTrailFilterModule.Type.STC_CUT_TRAIL)
+            # 设置阈值
+            event_trail_filter.set_threshold(100000)  # 设置阈值为100000微秒
+            # 启用过滤器
+            event_trail_filter.enable(True)
+            print("Event trail filter enabled.")
         
         return True
 
