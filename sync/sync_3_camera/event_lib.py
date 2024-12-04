@@ -114,14 +114,8 @@ class EventCamera:
 
         mv_iterator = EventsIterator.from_device(device=self.device, max_duration=1200000000)
         print("事件流记录开始")
-        height, width = mv_iterator.get_size()
-        print(f"图像尺寸: {width}x{height}")
-        
-        # 使用全局变量控制记录
-        print(f"采集状态标志: {ACQUISITION_FLAG}")
-        
         for _ in mv_iterator:
-            if ACQUISITION_FLAG == 1 or not RUNNING:
+            if ACQUISITION_FLAG.value == 1 or not RUNNING.value:
                 break
 
         self.stop_recording()

@@ -5,15 +5,14 @@ import os
 from threading import Thread
 import signal
 from config import *
-from event_lib import EventCamera, ensure_dir
+from event_lib import *
 from flir_lib import FlirCamera
 
 
 def signal_handler(sig, frame):
     """处理Ctrl+C信号"""
     print('\n正在清理资源并退出...')
-    global running
-    running = False
+    RUNNING.value = 0
     sys.exit(0)
 
 def send_pulse_command(num_pulses, frequency):  
@@ -54,12 +53,18 @@ def create_save_directories(base_path):
 
 def main():
     """主函数"""
+    # 初始化共享变量
+    RUNNING.value = 1
+    ACQUISITION_FLAG.value = 0
+    
     # 注册信号处理
     signal.signal(signal.SIGINT, signal_handler)
     
     # 创建保存目录
     save_path = create_save_directories(BASE_DIR)
 
+    flir = None
+    prophesee_cam = None
     try:
         # 初始化FLIR相机
         flir = FlirCamera()
@@ -94,13 +99,11 @@ def main():
                 print("开始多线程采集...")
                 
                 # 创建采集线程
-                prophesee_thread = Thread(target=prophesee_cam.start_recording)
-                flir_thread = Thread(target=flir.acquire_images, 
-                                  args=(cam, nodemap, save_path))
+                prophesee_thread = Thread(target=prophesee_cam.start_recording,args=())
+                flir_thread = Thread(target=flir.acquire_images,args=(cam, nodemap, save_path))
                 
                 # 启动线程
                 prophesee_thread.start()
-                time.sleep(0.5)  # 确保事件相机已经开始记录
                 flir_thread.start()
                 
                 # 发送触发指令
@@ -110,36 +113,34 @@ def main():
                 prophesee_thread.join()
                 flir_thread.join()
                 print("图像采集完成")
-
                 # 处理事件相机数据
-                try:
-                    triggers = prophesee_cam.prophesee_tirgger_found()
-                    if triggers is not None and len(triggers) > 0:
-                        print(f"成功检测到 {len(triggers)} 个触发信号")
-                    else:
-                        print("未检测到有效触发信号")
-                except Exception as e:
-                    print(f"事件相机数据处理失败: {e}")
+                # try:
+                #     triggers = prophesee_cam.prophesee_tirgger_found()
+                #     if triggers is not None and len(triggers) > 0:
+                #         print(f"成功检测到 {len(triggers)} 个触发信号")
+                #     else:
+                #         print("未检测到有效触发信号")
+                # except Exception as e:
+                #     print(f"事件相机数据处理失败: {e}")
+                # 确保相机停止采集
+                if cam.IsStreaming():
+                    cam.EndAcquisition()
+                cam.DeInit()
+                del cam
 
             except Exception as ex:
                 print(f'相机操作错误: {ex}')
                 return False
-            finally:
-                # 停止采集并清理资源
-                try:
-                    cam.EndAcquisition()
-                    cam.DeInit()
-                    print("相机已停止采集并释放")
-                except:
-                    pass
 
     except Exception as e:
         print(f"程序运行错误: {e}")
         return False
     finally:
-        # 清理资源
-        flir.cleanup()
-        print("所有资源已清理")
+        try:
+            flir.cleanup()
+            print("FLIR相机资源已清理")
+        except Exception as e:
+            print(f"清理FLIR相机资源时出错: {e}")
 
     print("程序执行完成")
     return True

@@ -1,3 +1,5 @@
+from multiprocessing import Value
+
 # FLIR相机配置参数
 FLIR_FRAMERATE = 12  # fps
 FLIR_EXPOSURE_TIME = 50000  # us
@@ -36,5 +38,5 @@ SERIAL_TIMEOUT = 1
 BASE_DIR = './data'  # 基础保存目录
 
 # 全局状态控制
-ACQUISITION_FLAG = 0  # 用于控制采集状态
-RUNNING = True       # 用于控制程序运行状态
+ACQUISITION_FLAG = Value('i', 0)  # 'i' 表示整型
+RUNNING = Value('i', 1)  # 'i' 表示整型
