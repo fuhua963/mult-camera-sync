@@ -7,7 +7,6 @@ import signal
 from config import *
 from event_lib import *
 from flir_lib import FlirCamera
-from thermal_lib import ThermalCamera
 
 
 def signal_handler(sig, frame):
@@ -45,7 +44,7 @@ def create_save_directories(base_path):
     save_path = os.path.abspath(os.path.join(base_path, timestamp))
     
     # 创建必要的子目录
-    subdirs = ['event', 'flir', 'thermal']
+    subdirs = ['event', 'flir']
     for subdir in subdirs:
         ensure_dir(os.path.join(save_path, subdir))
     
@@ -66,7 +65,6 @@ def main():
 
     flir = None
     prophesee_cam = None
-    thermal_cam = None
     try:
         # 初始化FLIR相机
         flir = FlirCamera()
@@ -81,19 +79,6 @@ def main():
             print("Prophesee相机初始化失败")
             return False
         print("Prophesee相机初始化成功")
-
-        # 初始化红外相机
-        thermal_cam = ThermalCamera()
-        if not thermal_cam.connect(THERMAL_CAMERA_IP, THERMAL_CAMERA_PORT):
-            print("红外相机初始化失败")
-            return False
-        print("红外相机初始化成功")
-
-        # 配置红外相机
-        if not thermal_cam.configure_camera(THERMAL_TEMP_SEGMENT, NUM_IMAGES):
-            print("红外相机配置失败")
-            return False
-        print("红外相机配置成功")
 
         # 相机采集流程
         for i, cam in enumerate(flir.cam_list):
@@ -114,14 +99,12 @@ def main():
                 print("开始多线程采集...")
                 
                 # 创建采集线程
-                prophesee_thread = Thread(target=prophesee_cam.start_recording)
-                flir_thread = Thread(target=flir.acquire_images, args=(cam, nodemap, save_path))
-                thermal_thread = Thread(target=thermal_cam.start_capture)
+                prophesee_thread = Thread(target=prophesee_cam.start_recording,args=())
+                flir_thread = Thread(target=flir.acquire_images,args=(cam, nodemap, save_path))
                 
                 # 启动线程
                 prophesee_thread.start()
                 flir_thread.start()
-                thermal_thread.start()
                 
                 # 发送触发指令
                 send_pulse_command(NUM_IMAGES, FLIR_FRAMERATE)
@@ -129,20 +112,16 @@ def main():
                 # 等待线程结束
                 prophesee_thread.join()
                 flir_thread.join()
-                
-                # 等待红外相机采集和处理完成
-                thermal_cam.wait_for_completion()
-                
+                print("图像采集完成")
                 # 处理事件相机数据
-                try:
-                    triggers = prophesee_cam.prophesee_tirgger_found()
-                    if triggers is not None and len(triggers) > 0:
-                        print(f"成功检测到 {len(triggers)} 个触发信号")
-                    else:
-                        print("未检测到有效触发信号")
-                except Exception as e:
-                    print(f"事件相机数据处理失败: {e}")
-
+                # try:
+                #     triggers = prophesee_cam.prophesee_tirgger_found()
+                #     if triggers is not None and len(triggers) > 0:
+                #         print(f"成功检测到 {len(triggers)} 个触发信号")
+                #     else:
+                #         print("未检测到有效触发信号")
+                # except Exception as e:
+                #     print(f"事件相机数据处理失败: {e}")
                 # 确保相机停止采集
                 if cam.IsStreaming():
                     cam.EndAcquisition()
@@ -158,14 +137,10 @@ def main():
         return False
     finally:
         try:
-            if flir:
-                flir.cleanup()
-                print("FLIR相机资源已清理")
-            if thermal_cam:
-                thermal_cam.cleanup()
-                print("红外相机资源已清理")
+            flir.cleanup()
+            print("FLIR相机资源已清理")
         except Exception as e:
-            print(f"清理相机资源时出错: {e}")
+            print(f"清理FLIR相机资源时出错: {e}")
 
     print("程序执行完成")
     return True

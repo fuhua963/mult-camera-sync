@@ -16,7 +16,7 @@ THERMAL_CAMERA_IP = "192.168.1.11"
 THERMAL_CAMERA_PORT = None  # 设置为 None 时会自动计算
 THERMAL_WIDTH = 640
 THERMAL_HEIGHT = 512
-THERMAL_FPS = 12.0  # 采集帧率
+THERMAL_FPS = FLIR_FRAMERATE  # 与FLIR相机保持相同帧率
 THERMAL_TEMP_SEGMENT = 0  # 温度段 (0:常温段, 1:中温段, 2:高温段)
 
 # Prophesee事件相机配置

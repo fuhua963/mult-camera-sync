@@ -25,7 +25,7 @@ from metavision_hal import I_EventTrailFilterModule
 
 
 # 全局变量设置
-NUM_IMAGES = 20+1  # number of images to save
+NUM_IMAGES = 100+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
@@ -157,19 +157,19 @@ class event():
         Digital_Crop.set_window_region((roi_x0, roi_y0, roi_x1, roi_y1),False)
         Digital_Crop.enable(True)
         
-        # # 假设 device 是已初始化的设备对象
-        # event_trail_filter = self.device.get_i_event_trail_filter_module()
-        # # 设置过滤类型
-        # if event_trail_filter:
-        #     available_types = event_trail_filter.get_available_types()
-        #     print("Available filter types:", available_types)
-        #     # 设置过滤类型为 STC_CUT_TRAIL
-        #     event_trail_filter.set_type(I_EventTrailFilterModule.Type.STC_CUT_TRAIL)
-        #     # 设置阈值
-        #     event_trail_filter.set_threshold(100000)  # 设置阈值为100000微秒
-        #     # 启用过滤器
-        #     event_trail_filter.enable(True)
-        #     print("Event trail filter enabled.")
+        # 假设 device 是已初始化的设备对象
+        event_trail_filter = self.device.get_i_event_trail_filter_module()
+        # 设置过滤类型
+        if event_trail_filter:
+            available_types = event_trail_filter.get_available_types()
+            print("Available filter types:", available_types)
+            # 设置过滤类型为 STC_CUT_TRAIL
+            event_trail_filter.set_type(I_EventTrailFilterModule.Type.STC_CUT_TRAIL)
+            # 设置阈值
+            event_trail_filter.set_threshold(100000)  # 设置阈值为100000微秒
+            # 启用过滤器
+            event_trail_filter.enable(True)
+            print("Event trail filter enabled.")
         
         return True
     def start_recording(self):

@@ -892,19 +892,18 @@ def main():
             # send_pulse_command(NUM_IMAGES,FRAMERATE)
             # # 关闭串口  
             # ser.close()
-            
-            sleep_time = 0.5/FRAMERATE
 
             try:
                 for i in range(NUM_IMAGES):
                     # 设置引脚为高电平
                     GPIO.output(output_pin, GPIO.HIGH)
-                    print(f"引脚 {output_pin}: 高电平")
-                    time.sleep(sleep_time)
+                    # print(f"引脚 {output_pin}: 高电平")
+                    time.sleep(0.1)
                     # 设置引脚为低电平
                     GPIO.output(output_pin, GPIO.LOW)
-                    print(f"引脚 {output_pin}: 低电平")
-                    time.sleep(sleep_time)
+                    # print(f"引脚 {output_pin}: 低电平")
+                    time.sleep(0.1)
+                    print(f"trigger {i}")
 
             except KeyboardInterrupt:
                 # 捕获Ctrl+C信号来终止程序
