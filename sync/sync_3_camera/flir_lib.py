@@ -230,6 +230,17 @@ class FlirCamera:
                     if PySpin.IsReadable(entry_trigger_source):
                         trigger_source = entry_trigger_source.GetValue()
                         node_trigger_source.SetIntValue(trigger_source)
+            # else:
+            #     node_trigger_mode_off = node_trigger_mode.GetEntryByName('Off')
+            #     if PySpin.IsReadable(node_trigger_mode_off):
+            #         node_trigger_mode.SetIntValue(node_trigger_mode_off.GetValue())
+
+            #     # 重置触发源为软件触发
+            #     node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+            #     if PySpin.IsReadable(node_trigger_source) and PySpin.IsWritable(node_trigger_source):
+            #         node_trigger_source_software = node_trigger_source.GetEntryByName('Software')
+            #         if PySpin.IsReadable(node_trigger_source_software):
+            #             node_trigger_source.SetIntValue(node_trigger_source_software.GetValue()) 
 
         except PySpin.SpinnakerException as ex:
             print(f'设置触发模式错误: {ex}')

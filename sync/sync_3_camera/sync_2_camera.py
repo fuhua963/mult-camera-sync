@@ -123,6 +123,7 @@ def main():
                 # except Exception as e:
                 #     print(f"事件相机数据处理失败: {e}")
                 # 确保相机停止采集
+
                 if cam.IsStreaming():
                     cam.EndAcquisition()
                 cam.DeInit()

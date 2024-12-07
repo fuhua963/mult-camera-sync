@@ -90,7 +90,7 @@ def main():
         print("红外相机初始化成功")
 
         # 配置红外相机
-        if not thermal_cam.configure_camera(THERMAL_TEMP_SEGMENT, NUM_IMAGES):
+        if not thermal_cam.configure_camera(THERMAL_TEMP_SEGMENT, NUM_IMAGES, save_path):
             print("红外相机配置失败")
             return False
         print("红外相机配置成功")

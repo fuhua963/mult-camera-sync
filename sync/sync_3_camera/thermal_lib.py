@@ -102,11 +102,12 @@ class ThermalCamera:
         self.is_connected = True
         print(f"已尝试连接红外相机: {ip_address}:{port}")
         return True
-    def configure_camera(self, temp_segment, frame_count):
+    def configure_camera(self, temp_segment, frame_count, save_path=None):
             """配置红外相机
             Args:
                 temp_segment: 温度段
                 frame_count: 需要采集的帧数
+                save_path: 保存路径
             """
             if not self.is_connected:
                 print("相机未连接，无法配置")
@@ -123,6 +124,11 @@ class ThermalCamera:
                 self.frame_buffer.append(frame)
             
             self.target_count = frame_count
+            
+            # 更新保存路径
+            if save_path:
+                self.base_dir = save_path
+            
             print("红外相机配置成功")
             return True
     def start_capture(self):
@@ -145,14 +151,13 @@ class ThermalCamera:
         """处理采集的帧"""
         frames_to_process = min(self.captured_count, self.target_count)
         
-        # 创建保存目录
-        curtime = datetime.now().strftime('%Y-%m-%d_%H.%M.%S')
-        save_dir = os.path.join(self.base_dir, curtime)
-        os.makedirs(save_dir)
+        # 使用主程序传入的保存路径
+        save_dir = os.path.join(self.base_dir, 'thermal')
+        os.makedirs(save_dir, exist_ok=True)
         
         # 保存采集信息
         with open(os.path.join(save_dir, 'capture_info.txt'), 'w') as f:
-            f.write(f"采集时间: {curtime}\n")
+            f.write(f"采集时间: {time.strftime('%Y-%m-%d_%H.%M.%S')}\n")
             f.write(f"采集帧率: {THERMAL_FPS} fps\n")
             f.write(f"温度段: {THERMAL_TEMP_SEGMENT}\n")
             f.write(f"图像尺寸: {THERMAL_WIDTH}x{THERMAL_HEIGHT}\n")
@@ -202,7 +207,7 @@ class ThermalCamera:
         
         # 等待处理完成
         if self.is_processing and self.process_thread:
-            print("等��红外图像处理完成...")
+            print("等红外图像处理完成...")
             self.process_thread.join()
             self.is_processing = False
             print("红外图像处理完成")
