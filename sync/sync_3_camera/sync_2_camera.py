@@ -114,14 +114,14 @@ def main():
                 flir_thread.join()
                 print("图像采集完成")
                 # 处理事件相机数据
-                # try:
-                #     triggers = prophesee_cam.prophesee_tirgger_found()
-                #     if triggers is not None and len(triggers) > 0:
-                #         print(f"成功检测到 {len(triggers)} 个触发信号")
-                #     else:
-                #         print("未检测到有效触发信号")
-                # except Exception as e:
-                #     print(f"事件相机数据处理失败: {e}")
+                try:
+                    triggers = prophesee_cam.prophesee_tirgger_found()
+                    if triggers is not None and len(triggers) > 0:
+                        print(f"成功检测到 {len(triggers)} 个触发信号")
+                    else:
+                        print("未检测到有效触发信号")
+                except Exception as e:
+                    print(f"事件相机数据处理失败: {e}")
                 # 确保相机停止采集
 
                 if cam.IsStreaming():

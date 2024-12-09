@@ -225,22 +225,40 @@ class FlirCamera:
             if FLIR_EX_TRIGGER:
                 # 设置触发源
                 node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
-                if PySpin.IsAvailable(node_trigger_source) and PySpin.IsWritable(node_trigger_source):
-                    entry_trigger_source = node_trigger_source.GetEntryByName('Line0')
-                    if PySpin.IsReadable(entry_trigger_source):
-                        trigger_source = entry_trigger_source.GetValue()
-                        node_trigger_source.SetIntValue(trigger_source)
-            # else:
-            #     node_trigger_mode_off = node_trigger_mode.GetEntryByName('Off')
-            #     if PySpin.IsReadable(node_trigger_mode_off):
-            #         node_trigger_mode.SetIntValue(node_trigger_mode_off.GetValue())
+                entry_trigger_source_line3 = node_trigger_source.GetEntryByName('Line3')
+                if not PySpin.IsAvailable(entry_trigger_source_line3) or not PySpin.IsReadable(entry_trigger_source_line3):
+                    print('\nUnable to enter Trigger Source Line3. Aborting...\n')
+                    return False
+                trigger_source_line3 = entry_trigger_source_line3.GetValue()
+                node_trigger_source.SetIntValue(trigger_source_line3)
+                
+                node_trigger_activation = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
+                if not PySpin.IsAvailable(node_trigger_activation) or not PySpin.IsWritable(node_trigger_activation):
+                    print('\nUnable to set Trigger Activation (enumeration retrieval). Aborting...\n')
+                    return False
+                entry_trigger_activation_risingedge = node_trigger_activation.GetEntryByName('RisingEdge')
+                if not PySpin.IsAvailable(entry_trigger_activation_risingedge) or not PySpin.IsReadable(entry_trigger_activation_risingedge):
+                    print('\nUnable to enter Trigger Activation Rising Edge. Aborting...\n')
+                    return False
+                trigger_activation_risingedge = entry_trigger_activation_risingedge.GetValue()
+                node_trigger_activation.SetIntValue(trigger_activation_risingedge)
 
-            #     # 重置触发源为软件触发
-            #     node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
-            #     if PySpin.IsReadable(node_trigger_source) and PySpin.IsWritable(node_trigger_source):
-            #         node_trigger_source_software = node_trigger_source.GetEntryByName('Software')
-            #         if PySpin.IsReadable(node_trigger_source_software):
-            #             node_trigger_source.SetIntValue(node_trigger_source_software.GetValue()) 
+                node_trigger_overlap = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
+                if not PySpin.IsAvailable(node_trigger_overlap) or not PySpin.IsWritable(node_trigger_overlap):
+                    print('\nUnable to set Trigger Overlap (enumeration retrieval). Aborting...\n')
+                    return False
+                node_trigger_overlap.SetIntValue(PySpin.TriggerOverlap_ReadOut)
+            else:
+                node_trigger_mode_off = node_trigger_mode.GetEntryByName('Off')
+                if PySpin.IsReadable(node_trigger_mode_off):
+                    node_trigger_mode.SetIntValue(node_trigger_mode_off.GetValue())
+
+                # 重置触发源为软件触发
+                node_trigger_source = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+                if PySpin.IsReadable(node_trigger_source) and PySpin.IsWritable(node_trigger_source):
+                    node_trigger_source_software = node_trigger_source.GetEntryByName('Software')
+                    if PySpin.IsReadable(node_trigger_source_software):
+                        node_trigger_source.SetIntValue(node_trigger_source_software.GetValue()) 
 
         except PySpin.SpinnakerException as ex:
             print(f'设置触发模式错误: {ex}')
@@ -399,7 +417,6 @@ class FlirCamera:
             for i in range(NUM_IMAGES):
                 if RUNNING.value == 0:
                     break
-                    
                 image_result = cam.GetNextImage(1000)
                 if image_result.IsIncomplete():
                     print(f'图像不完整: {image_result.GetImageStatus()}')

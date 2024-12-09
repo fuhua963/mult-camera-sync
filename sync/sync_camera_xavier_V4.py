@@ -25,7 +25,7 @@ from metavision_hal import I_EventTrailFilterModule
 
 
 # 全局变量设置
-NUM_IMAGES = 150+1  # number of images to save
+NUM_IMAGES = 20+1  # number of images to save
 #prophesee first trigger is incompelete, so we save one more image
 # evk4 触发反向了
 ## flir camera set
